@@ -38,7 +38,7 @@ def day_print(input_list):
     ret_str = ""
 
     for n,nick in enumerate(input_list):
-        ret_str = ret_str + str(n) + ". " + nick + "\n"
+        ret_str = ret_str + "    " + str(n+1) + ". " + nick + "\n"
 
     return ret_str
 
@@ -140,13 +140,13 @@ async def on_message(message):
             str_data = "```CSS\n#" + str_input.capitalize() + ": \n" + day_print(guilds[guild_id][str_input]) + "```"
         else:
             # Default: send lists for every day
-            str_data = "```Sun: {}\nMon: {}\nTue: {}\nWed: {}\nThu: {}\nFri: {}\nSat: {}```".format(guilds[guild_id]['sun'],
-                                                           guilds[guild_id]['mon'],
-                                                           guilds[guild_id]['tue'],
-                                                           guilds[guild_id]['wed'],
-                                                           guilds[guild_id]['thu'],
-                                                           guilds[guild_id]['fri'],
-                                                           guilds[guild_id]['sat'])
+            str_data = "```CSS\n#Sun:\n{}\n#Mon:\n{}\n#Tue:\n{}\n#Wed:\n{}\n#Thu:\n{}\n#Fri:\n{}\n#Sat:\n{}```".format(day_print(guilds[guild_id]['sun']),
+                                                           day_print(guilds[guild_id]['mon']),
+                                                           day_print(guilds[guild_id]['tue']),
+                                                           day_print(guilds[guild_id]['wed']),
+                                                           day_print(guilds[guild_id]['thu']),
+                                                           day_print(guilds[guild_id]['fri']),
+                                                           day_print(guilds[guild_id]['sat']))
         # Send the string
         await message.channel.send(str_data)
     elif '~.print_guilds' in message.content.lower():
