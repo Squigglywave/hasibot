@@ -6,6 +6,9 @@ import requests
 import discord
 from dotenv import load_dotenv
 
+# Application Specific Library
+from utils import get_echo_30
+
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 client = discord.Client()
@@ -149,6 +152,15 @@ async def on_message(message):
                                                            day_print(guilds[guild_id]['sat']))
         # Send the string
         await message.channel.send(str_data)
+    elif '~.roll_echo' in message.content.lower():
+        str_input = message.content.lower()
+        str_input = str_input[12:]
+        attempts,total_stat = get_echo_30()
+        
+        resp = "It took {} attempts! The total stat is: {}".format(attempts,total_stat)
+        
+        await message.channel.send(str(resp))
+    
     elif '~.print_guilds' in message.content.lower():
         str_input = message.content.lower()
         str_input = str_input[15:]
