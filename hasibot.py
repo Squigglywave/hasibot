@@ -4,12 +4,11 @@ import requests
 
 # Third Party Library
 import discord
+from dotenv import load_dotenv
 
-
-TOKEN = 'NDU2MzI5MzgxNjE5Njk1NjE2.WyCr2g.DirVBCaIgepsE_e6DDc6D0DX2fg'
+load_dotenv()
+TOKEN = os.getenv('DISCORD_TOKEN')
 client = discord.Client()
-
-client.user.setStatus('invisible')
 
 guilds = {}
 
