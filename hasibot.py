@@ -137,7 +137,7 @@ async def on_message(message):
 
         # Formulate the string
         if str_input in day_emotes:
-            str_data = "```CSS\n#" + str_input.capitalize() + ": \n" + day_print(guilds[guild_id][str_input])) + "```"
+            str_data = "```CSS\n#" + str_input.capitalize() + ": \n" + day_print(guilds[guild_id][str_input]) + "```"
         else:
             # Default: send lists for every day
             str_data = "```Sun: {}\nMon: {}\nTue: {}\nWed: {}\nThu: {}\nFri: {}\nSat: {}```".format(guilds[guild_id]['sun'],
