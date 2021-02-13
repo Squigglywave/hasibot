@@ -37,10 +37,10 @@ def init_guilds(arg, channel_id):
 def day_print(input_list):
     ret_str = ""
 
-    for n,nick in input_list:
+    for n,nick in enumerate(input_list):
         ret_str = ret_str + str(n) + ". " + nick + "\n"
 
-    return ret_st
+    return ret_str
 
 @client.event
 async def on_ready():
