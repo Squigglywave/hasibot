@@ -32,6 +32,15 @@ def init_guilds(arg, channel_id):
                     'fri': [],
                     'sat': []
                   }
+    
+# Takes in the list of names and returns a nice string
+def day_print(input_list):
+    ret_str = ""
+
+    for n,nick in input_list:
+        ret_str = ret_str + str(n) + ". " + nick + "\n"
+
+    return ret_st
 
 @client.event
 async def on_ready():
@@ -128,7 +137,7 @@ async def on_message(message):
 
         # Formulate the string
         if str_input in day_emotes:
-            str_data = "```" + str_input.capitalize() + ": " + str(guilds[guild_id][str_input]) + "```"
+            str_data = "```CSS\n#" + str_input.capitalize() + ": \n" + day_print(guilds[guild_id][str_input])) + "```"
         else:
             # Default: send lists for every day
             str_data = "```Sun: {}\nMon: {}\nTue: {}\nWed: {}\nThu: {}\nFri: {}\nSat: {}```".format(guilds[guild_id]['sun'],
