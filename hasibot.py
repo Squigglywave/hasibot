@@ -1,8 +1,8 @@
 # Standard Library
 import os
-import requests
 
 # Third Party Library
+import requests
 import discord
 from dotenv import load_dotenv
 
