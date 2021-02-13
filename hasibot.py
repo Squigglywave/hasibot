@@ -16,23 +16,21 @@ guilds = {}
 async def on_ready():
     global guilds
     async for guild in client.fetch_guilds(limit=150):
-        guilds[guild.id] = {'channel_id':756046528032014386,
-                         'message_id':'',
-                         'dict_user_table':{},
-                         'sunday': [],
-                         'monday': [],
-                         'tuesday': [],
-                         'wednesday': [],
-                         'thursday': [],
-                         'friday': [],
-                         'saturday': []
-                        }
+        guilds[guild.id] = { 'message_id':'',
+                             'dict_user_table':{},
+                             'sunday': [],
+                             'monday': [],
+                             'tuesday': [],
+                             'wednesday': [],
+                             'thursday': [],
+                             'friday': [],
+                             'saturday': []
+                           }
 
 @client.event
 async def on_raw_reaction_add(payload):
     global guilds
     guild_id = payload.guild_id
-    channel = client.get_channel(guilds[guild_id]['channel_id'])
 
     if payload.message_id == guilds[guild_id]['message_id']:
         if payload.emoji.name == 'sun':
@@ -55,7 +53,6 @@ async def on_raw_reaction_add(payload):
 async def on_raw_reaction_remove(payload):
     global guilds
     guild_id = payload.guild_id
-    channel = client.get_channel(guilds[guild_id]['channel_id'])
 
     if payload.message_id == guilds[guild_id]['message_id']:
         if payload.emoji.name == 'sun':
@@ -78,27 +75,22 @@ async def on_message(message):
     global guilds
     guild_id = message.guild.id
 
-    if '~.watch_channel' in message.content.lower():
-        str_input = message.content.lower()
-        guilds[guild_id]['channel_id'] = int(str_input[16:])
-    elif '~.watch_message' in message.content.lower():
-        temp_id = guilds[guild_id]['channel_id']
-        guilds[guild_id] = {'channel_id':temp_id,
-                         'message_id':'',
-                         'dict_user_table':{},
-                         'sunday': [],
-                         'monday': [],
-                         'tuesday': [],
-                         'wednesday': [],
-                         'thursday': [],
-                         'friday': [],
-                         'saturday': []
-                        }
+    if '~.watch_message' in message.content.lower():
+        guilds[guild_id] = { 'message_id':'',
+                             'dict_user_table':{},
+                             'sunday': [],
+                             'monday': [],
+                             'tuesday': [],
+                             'wednesday': [],
+                             'thursday': [],
+                             'friday': [],
+                             'saturday': []
+                           }
         str_input = message.content.lower()
         guilds[guild_id]['message_id'] = int(str_input[16:])
     elif '~.hasi' in message.content.lower():
         str_input = message.content.lower()[7:]
-         
+
         if str_input == 'all':
             str_data = "```Sun: {}\nMon: {}\nTue: {}\nWed: {}\nThu: {}\nFri: {}\nSat: {}```".format(guilds[guild_id]['sunday'],
                                                            guilds[guild_id]['monday'],
@@ -127,13 +119,12 @@ async def on_message(message):
         str_input = str_input[9:]
 
         url = 'https://api.mabibase.com/items/search/name/{}'.format(str_input)
-        response = requests.get(url = url) 
+        response = requests.get(url = url)
         item_id = response.json()['data']['items'][0]['id']
-        
+
         url = 'https://api.mabibase.com/item/{}'.format(item_id)
-        response2 = requests.get(url = url) 
- 
+        response2 = requests.get(url = url)
+
         await message.channel.send(response2.json()['data']['item'])
-    
-             
+
 client.run(TOKEN)
