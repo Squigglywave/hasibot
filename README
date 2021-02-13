@@ -1,0 +1,21 @@
+Usage:
+
+~.watch_channel <CHANNEL_ID>
+  Used to select which channel to watch. Must be set to something.
+
+~.watch_message <MESSAGE_ID>
+  Used to select which message to watch. Must be set to something.
+
+~.hasi <day>
+  Displays the queue for the requested day. Accepted values:
+    sun
+    mon
+    tue
+    wed
+    thu
+    fri
+    sat
+    default (no argument) - displays all days
+
+~.search <NAME>
+  Searches mabibase.com for <NAME> and returns the first result.
