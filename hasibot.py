@@ -15,7 +15,9 @@ from config import lst_scols
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-client = discord.Client()
+intents = discord.Intents.all()
+intents.members = True
+client = discord.Client(intents=intents)
 
 ###########
 # Globals #
@@ -41,11 +43,19 @@ def init_guilds(arg, channel_id):
                   }
     
 # Takes in the list of names and returns a nice string
-def day_print(input_list):
+def day_print(guild_id, day):
+    global guilds
     ret_str = ""
 
-    for n,nick in enumerate(input_list):
-        ret_str = ret_str + "    " + str(n+1) + ". " + nick + "\n"
+    lst_names = guilds[guild_id][day]
+
+    for n,user_id in enumerate(lst_names):
+        user = client.get_guild(guild_id).get_member(user_id)
+        if user.nick is not None:
+            name = user.nick
+        else:
+            name = user.name
+        ret_str = ret_str + "    " + str(n+1) + ". " + name + "\n"
 
     return ret_str
 
@@ -90,9 +100,9 @@ async def on_raw_reaction_add(payload):
     if (channel.id == guilds[guild_id]['channel_id']) and (payload.message_id == message_id):
         day = payload.emoji.name
         if day in day_emotes:
-            guilds[guild_id][day].append(payload.member.nick)
+            guilds[guild_id][day].append(payload.member.id)
 
-        guilds[guild_id]['dict_user_table'][payload.user_id] = payload.member.nick
+        # guilds[guild_id]['dict_user_table'][payload.user_id] = payload.member.nick
 
 @client.event
 async def on_raw_reaction_remove(payload):
@@ -109,20 +119,20 @@ async def on_raw_reaction_remove(payload):
     if (channel.id == guilds[guild_id]['channel_id']) and (payload.message_id == message_id):
         # Check if the user exists in the dict
         user = payload.user_id
-        if user in user_list:
-            # Get the user's nickname
-            user_nick = guilds[guild_id]['dict_user_table'][payload.user_id]
-        else:
-          # User does not exist
-          return
+        # if user in user_list:
+            # # Get the user's nickname
+            # user_nick = guilds[guild_id]['dict_user_table'][payload.user_id]
+        # else:
+          # # User does not exist
+          # return
 
-        # Remove user from day list if possible
+        # # Remove user from day list if possible
         day = payload.emoji.name
         if day in day_emotes:
             day_list = guilds[guild_id][day]
 
         # if user_nick in day_list:
-        day_list.remove(user_nick)
+        day_list.remove(user)
 
 @client.event
 async def on_message(message):
@@ -144,16 +154,16 @@ async def on_message(message):
 
         # Formulate the string
         if str_input in day_emotes:
-            str_data = "```CSS\n#" + str_input.capitalize() + ": \n" + day_print(guilds[guild_id][str_input]) + "```"
+            str_data = "```CSS\n#" + str_input.capitalize() + ": \n" + day_print(guild_id, str_input) + "```"
         else:
             # Default: send lists for every day
-            str_data = "```CSS\n#Sun:\n{}\n#Mon:\n{}\n#Tue:\n{}\n#Wed:\n{}\n#Thu:\n{}\n#Fri:\n{}\n#Sat:\n{}```".format(day_print(guilds[guild_id]['sun']),
-                                                           day_print(guilds[guild_id]['mon']),
-                                                           day_print(guilds[guild_id]['tue']),
-                                                           day_print(guilds[guild_id]['wed']),
-                                                           day_print(guilds[guild_id]['thu']),
-                                                           day_print(guilds[guild_id]['fri']),
-                                                           day_print(guilds[guild_id]['sat']))
+            str_data = "```CSS\n#Sun:\n{}\n#Mon:\n{}\n#Tue:\n{}\n#Wed:\n{}\n#Thu:\n{}\n#Fri:\n{}\n#Sat:\n{}```".format(day_print(guild_id, 'sun'),
+                                                           day_print(guild_id,'mon'),
+                                                           day_print(guild_id,'tue'),
+                                                           day_print(guild_id,'wed'),
+                                                           day_print(guild_id,'thu'),
+                                                           day_print(guild_id,'fri'),
+                                                           day_print(guild_id,'sat'))
         # Send the string
         await message.channel.send(str_data)
     elif '~.roll_echo' in message.content.lower():
@@ -173,9 +183,19 @@ async def on_message(message):
         str_input = message.content.lower()
         str_input = str_input[15:]
 
+        the_link2 = "https://wiki.mabinogiworld.com/index.php?search=" + str_input
+
         main_url = 'https://api.mabibase.com/items/search/name/{}'.format(str_input)
         response = requests.get(url = main_url)
+        
+        if response.json()['data']['items'] == []:
+            await message.channel.send(content='No result\n' + the_link2)
+            return
+        
         item_id = response.json()['data']['items'][0]['id']
+
+        the_link = "https://mabibase.com/item/" + str(item_id)
+        final_link = the_link + "\n" + the_link2
 
         url = 'https://api.mabibase.com/item/{}'.format(item_id)
         response2 = requests.get(url = url)
@@ -201,7 +221,6 @@ async def on_message(message):
             print(ex)
 
         try:
-            # import pdb; pdb.set_trace();
             lst_rolls = df_final['random_product'][0].split(";")
             for str_ in lst_rolls:
                 pos_comma = str_.find(",")
@@ -216,17 +235,15 @@ async def on_message(message):
         # Get the icon
         # url = 'https://api.mabibase.com/icon/item/{}'.format(item_id)
         # response3 = requests.get(url = url)
-        # import pdb; pdb.set_trace();
         obj_embed = discord.Embed(title=df['name'][0], description=df['description'][0])
         # picture = discord.Embed(io.BytesIO(response3.content))
         url = "https://api.mabibase.com/icon/item/" + str(item_id)
         obj_embed.set_image(url=url)
         
-        # import pdb; pdb.set_trace();
         
         str_final = "```\n" + str(df_final.transpose()) + "\n```"
-        the_link = "https://mabibase.com/item/" + str(item_id)
-        await message.channel.send(embed=obj_embed, content=the_link)
+
+        await message.channel.send(embed=obj_embed, content=final_link)
         await message.channel.send(content=str_final)
     elif '~.search es' in message.content.lower():
         str_input = message.content.lower()
@@ -235,7 +252,6 @@ async def on_message(message):
         main_url = 'https://api.mabibase.com/enchants/search?q=name,{}'.format(str_input)
         response = requests.get(url = main_url)
         
-        # import pdb; pdb.set_trace();
         
         df = pd.DataFrame([response.json()['data']['enchants'][0]])
         
