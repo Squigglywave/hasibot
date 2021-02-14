@@ -148,6 +148,32 @@ async def on_message(message):
         
             guilds[guild_id]['dict_user_table'][name.lower()] = member.id
         await message.channel.send('User Table Updated!')
+    elif '~.load_id' in message.content.lower():
+        str_input = message.content.lower()[10:]
+
+        day = str_input[:3]
+        str_input = str_input[4:]
+     
+        if day in day_emotes:
+            lst_ids = eval(str_input)
+            lst_guild_ids = [member.id for member in client.get_guild(guild_id).members]
+            
+            set1 = set(lst_guild_ids)
+            set2 = set(lst_ids)
+            
+            bad_diff = set2-set1
+            
+            lst_bad_items = []
+            while len(bad_diff) > 0:
+                bad_item = bad_diff.pop()
+                lst_bad_items.append(bad_item)
+                lst_ids.remove(bad_item)
+                
+            # list(set(lst_guild_ids) - set(lst_ids))
+            
+            guilds[guild_id][day] = lst_ids
+
+        await message.channel.send('Loaded ids for day: {}, Ids failed: {}'.format(day,lst_bad_items))
     elif '~.load' in message.content.lower():
         str_input = message.content.lower()[7:]
         
@@ -193,10 +219,48 @@ async def on_message(message):
         
         await message.channel.send(str(resp))
     
-    elif '~.print_guilds' in message.content.lower():
+    elif '~.print_info' in message.content.lower():
         str_input = message.content.lower()
-        str_input = str_input[15:]
-        await message.channel.send(str(guilds))
+        str_input = str_input[13:]
+        
+        df_final = pd.DataFrame()
+        df_final2 = pd.DataFrame()
+        
+        for guild in guilds.keys():
+            df = pd.DataFrame([guilds[guild]])
+            df['guild'] = guild
+            df['guild_name'] = client.get_guild(guild).name
+            df_final2 = pd.concat([df_final2,df])
+            df['sun'] = len(df['sun'][0])
+            df['mon'] = len(df['mon'][0])
+            df['tue'] = len(df['tue'][0])
+            df['wed'] = len(df['wed'][0])
+            df['thu'] = len(df['thu'][0])
+            df['fri'] = len(df['fri'][0])
+            df['sat'] = len(df['sat'][0])
+            df_final = pd.concat([df_final, df])
+
+        cols = ['guild','guild_name','channel_id','message_id','sun','mon','tue','wed','thu','fri','sat']
+        df_final = df_final[cols]
+        df_final2 = df_final2[cols]
+
+        lst_args = str_input.split(" ")
+
+
+        # import pdb; pdb.set_trace();
+        if lst_args[0].lower() == 'gid' and len(lst_args) == 2:
+            df_final = df_final[df_final['guild'] == int(lst_args[1])]
+        elif lst_args[0].lower() == 'gid' and len(lst_args) == 3:
+            df_final2 = df_final2[df_final['guild'] == int(lst_args[1])]
+            df_final2 = df_final2[lst_args[2]][0]
+            df_final = df_final2
+        
+        if type(df_final) == list:
+            str_final = "```\n" + str(df_final) + "\n```"
+        else:
+            str_final = "```\n" + str(df_final.transpose()) + "\n```"
+        
+        await message.channel.send(str_final)
     elif '~.search items' in message.content.lower():
         str_input = message.content.lower()
         str_input = str_input[15:]
