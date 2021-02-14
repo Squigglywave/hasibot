@@ -149,6 +149,35 @@ async def on_message(message):
         init_guilds(guild_id, temp_id)
         str_input = message.content.lower()
         guilds[guild_id]['message_id'] = int(str_input[16:])
+    elif '~.update_ut' in message.content.lower():
+        lst_members = client.get_guild(guild_id).members
+        
+        for member in lst_members:
+            name =  member.nick
+            if name is None:
+                name = member.name
+        
+            guilds[guild_id]['dict_user_table'][name.lower()] = member.id
+        await message.channel.send('User Table Updated!')
+    elif '~.load' in message.content.lower():
+        str_input = message.content.lower()[7:]
+        
+        day = str_input[:3]
+        str_input = str_input[4:]
+
+        if day in day_emotes:
+            lst_names = eval(str_input)
+            
+            guilds[guild_id][day] = []
+            for name in lst_names:
+                if name in guilds[guild_id]['dict_user_table'].keys():
+                    user_id = guilds[guild_id]['dict_user_table'][name.lower()]
+                    guilds[guild_id][day].append(user_id)
+                else:
+                    await message.channel.send('Name {} missing in ut'.format(name))
+
+        await message.channel.send('Loaded ' + day)
+        
     elif '~.hasi' in message.content.lower():
         str_input = message.content.lower()[7:]
 
