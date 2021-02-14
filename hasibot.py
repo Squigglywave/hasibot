@@ -1,13 +1,17 @@
 # Standard Library
 import os
+import io
+import xml.etree.ElementTree as ET
 
 # Third Party Library
 import requests
 import discord
 from dotenv import load_dotenv
+import pandas as pd
 
 # Application Specific Library
 from utils import get_echo_30
+from config import lst_scols
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -165,17 +169,92 @@ async def on_message(message):
         str_input = message.content.lower()
         str_input = str_input[15:]
         await message.channel.send(str(guilds))
-    elif '~.search' in message.content.lower():
+    elif '~.search items' in message.content.lower():
         str_input = message.content.lower()
-        str_input = str_input[9:]
+        str_input = str_input[15:]
 
-        url = 'https://api.mabibase.com/items/search/name/{}'.format(str_input)
-        response = requests.get(url = url)
+        main_url = 'https://api.mabibase.com/items/search/name/{}'.format(str_input)
+        response = requests.get(url = main_url)
         item_id = response.json()['data']['items'][0]['id']
 
         url = 'https://api.mabibase.com/item/{}'.format(item_id)
         response2 = requests.get(url = url)
 
-        await message.channel.send(response2.json()['data']['item'])
+        df = pd.DataFrame([response2.json()['data']['item']])
 
+        df_final = df[df.columns.intersection(lst_scols)]
+
+
+        try:
+            xml_string = df_final['xml_string'][0]
+            etree = ET.fromstring(xml_string)
+            for item in etree.items():
+                df_final[item[0]] = item[1]
+        except Exception as ex:
+            print(ex)
+
+        try:
+            lst_effects = df_final['set_effects'][0]['effects']
+            for item in lst_effects:
+                df_final[item['name']] = item['value']
+        except Exception as ex:
+            print(ex)
+
+        try:
+            # import pdb; pdb.set_trace();
+            lst_rolls = df_final['random_product'][0].split(";")
+            for str_ in lst_rolls:
+                pos_comma = str_.find(",")
+                df_final[str_[:pos_comma]] = str_[pos_comma+1:]
+                
+        except Exception as ex:
+            print(ex)
+
+
+        df_final = df_final.drop(columns=['xml_string','set_effects','random_product'], axis=1, errors='ignore')
+        
+        # Get the icon
+        # url = 'https://api.mabibase.com/icon/item/{}'.format(item_id)
+        # response3 = requests.get(url = url)
+        # import pdb; pdb.set_trace();
+        obj_embed = discord.Embed(title=df['name'][0], description=df['description'][0])
+        # picture = discord.Embed(io.BytesIO(response3.content))
+        url = "https://api.mabibase.com/icon/item/" + str(item_id)
+        obj_embed.set_image(url=url)
+        
+        # import pdb; pdb.set_trace();
+        
+        str_final = "```\n" + str(df_final.transpose()) + "\n```"
+        the_link = "https://mabibase.com/item/" + str(item_id)
+        await message.channel.send(embed=obj_embed, content=the_link)
+        await message.channel.send(content=str_final)
+    elif '~.search es' in message.content.lower():
+        str_input = message.content.lower()
+        str_input = str_input[12:]
+        
+        main_url = 'https://api.mabibase.com/enchants/search?q=name,{}'.format(str_input)
+        response = requests.get(url = main_url)
+        
+        # import pdb; pdb.set_trace();
+        
+        df = pd.DataFrame([response.json()['data']['enchants'][0]])
+        
+        try:
+            # import pdb; pdb.set_trace();
+            lst_modifiers = df['modifiers'][0]
+            
+            for mod in lst_modifiers:
+                df[mod['effect']['arguments'][0]] = mod['effect']['arguments'][1]
+        except Exception as ex:
+            print(ex)
+        
+        df_final = df
+        
+        df_final = df_final.drop(columns=['modifiers'], axis=1, errors='ignore')
+        str_final = "```\n" + str(df_final.transpose()) + "\n```"
+        
+        link = "https://mabibase.com/enchants/search?q=name," + str_input
+        
+        await message.channel.send(content=link)
+        await message.channel.send(content=str_final)
 client.run(TOKEN)
