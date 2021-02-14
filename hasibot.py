@@ -102,8 +102,6 @@ async def on_raw_reaction_add(payload):
         if day in day_emotes:
             guilds[guild_id][day].append(payload.member.id)
 
-        # guilds[guild_id]['dict_user_table'][payload.user_id] = payload.member.nick
-
 @client.event
 async def on_raw_reaction_remove(payload):
     global guilds
@@ -117,21 +115,12 @@ async def on_raw_reaction_remove(payload):
         return
 
     if (channel.id == guilds[guild_id]['channel_id']) and (payload.message_id == message_id):
-        # Check if the user exists in the dict
         user = payload.user_id
-        # if user in user_list:
-            # # Get the user's nickname
-            # user_nick = guilds[guild_id]['dict_user_table'][payload.user_id]
-        # else:
-          # # User does not exist
-          # return
 
-        # # Remove user from day list if possible
         day = payload.emoji.name
         if day in day_emotes:
             day_list = guilds[guild_id][day]
 
-        # if user_nick in day_list:
         day_list.remove(user)
 
 @client.event
@@ -261,11 +250,7 @@ async def on_message(message):
 
         df_final = df_final.drop(columns=['xml_string','set_effects','random_product'], axis=1, errors='ignore')
         
-        # Get the icon
-        # url = 'https://api.mabibase.com/icon/item/{}'.format(item_id)
-        # response3 = requests.get(url = url)
         obj_embed = discord.Embed(title=df['name'][0], description=df['description'][0])
-        # picture = discord.Embed(io.BytesIO(response3.content))
         url = "https://api.mabibase.com/icon/item/" + str(item_id)
         obj_embed.set_image(url=url)
         
@@ -281,11 +266,9 @@ async def on_message(message):
         main_url = 'https://api.mabibase.com/enchants/search?q=name,{}'.format(str_input)
         response = requests.get(url = main_url)
         
-        
         df = pd.DataFrame([response.json()['data']['enchants'][0]])
         
         try:
-            # import pdb; pdb.set_trace();
             lst_modifiers = df['modifiers'][0]
             
             for mod in lst_modifiers:
