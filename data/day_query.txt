@@ -1,5 +1,5 @@
 SELECT t1.guild_id,t1.channel_id,t1.message_id,t2.Sun,t2.Mon,t2.Tue,t2.Wed,t2.Thu,t2.Fri,t2.Sat FROM
-  (SELECT * FROM hasibot_dev.guilds) t1,
+  (SELECT * FROM {0}.guilds) t1,
   (SELECT guild_id,
     count(case when day = 'sun' then 1 end) as Sun,
     count(case when day = 'mon' then 1 end) as Mon,
