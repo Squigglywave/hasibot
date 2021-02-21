@@ -18,11 +18,6 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 DB_URL = os.getenv('DATABASE_URL')
-USER=os.getenv('USER')
-DATABASE=os.getenv('DATABASE')
-HOST=os.getenv('HOST')
-PORT=os.getenv('PORT')
-PASSWORD=os.getenv('PASSWORD')
 
 intents = discord.Intents.all()
 intents.members = True
@@ -56,7 +51,7 @@ def grab_day(df,day):
 
 @client.event
 async def on_ready():
-    DataConnector.create_engine(USER, PASSWORD, HOST, PORT, DATABASE, DB_URL)
+    DataConnector.create_engine(DB_URL)
     df_all_guilds = pd.DataFrame()
     df = DataConnector.read_data('SELECT * FROM hasibot_dev.guilds')
     df_all_guilds = pd.concat([df_all_guilds,df])
