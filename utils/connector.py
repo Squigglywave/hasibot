@@ -7,10 +7,10 @@ class DataConnector():
     conn = None
 
     @classmethod
-    def create_engine(cls, user, password, host, port, database):
+    def create_engine(cls, user, password, host, port, database, DB_URL):
         try:
-            str_conn = 'postgres://{}:{}@{}:{}/{}'.format(user,password,host,port,database)
-            cls.engine = create_engine(str_conn)
+            #str_conn = 'postgres://{}:{}@{}:{}/{}'.format(user,password,host,port,database)
+            cls.engine = create_engine(str(DB_URL))
         
             return 1
         except Exception as ex:
