@@ -9,7 +9,7 @@ class DataConnector():
     @classmethod
     def create_engine(cls, user, password, host, port, database):
         try:
-            str_conn = 'postgresql://{}:{}@{}:{}/{}'.format(user,password,host,port,database)
+            str_conn = 'postgres://{}:{}@{}:{}/{}'.format(user,password,host,port,database)
             cls.engine = create_engine(str_conn)
         
             return 1
