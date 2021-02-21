@@ -8,6 +8,6 @@ SELECT t1.guild_id,t1.channel_id,t1.message_id,t2.Sun,t2.Mon,t2.Tue,t2.Wed,t2.Th
     count(case when day = 'thu' then 1 end) as Thu,
     count(case when day = 'fri' then 1 end) as Fri,
     count(case when day = 'sat' then 1 end) as Sat
-   FROM hasibot_dev.days
+   FROM {0}.days
    GROUP BY guild_id) t2
    WHERE t1.guild_id = t2.guild_id
