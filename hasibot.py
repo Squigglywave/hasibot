@@ -2,6 +2,7 @@
 import os
 import io
 import xml.etree.ElementTree as ET
+import datetime
 
 # Third Party Library
 import requests
@@ -10,11 +11,14 @@ from dotenv import load_dotenv
 import pandas as pd
 
 # Application Specific Library
-from utils import get_echo_30
-from config import lst_scols
+from utils import get_echo_30, get_boosted_echo_30, DataConnector
+from config import lst_scols, time_zone
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
+
+DB_URL = os.getenv('DATABASE_URL')
+
 intents = discord.Intents.all()
 intents.members = True
 client = discord.Client(intents=intents)
@@ -24,33 +28,12 @@ client = discord.Client(intents=intents)
 ###########
 # List of acceptable day emoji names, should match what is stored in guilds var
 day_emotes = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
-guilds = {}
 
-# Dumps all data stored in the given 'guilds' entry
-def init_guilds(arg, channel_id):
-    global guilds
-
-    guilds[arg] = { 'channel_id': channel_id,
-                    'message_id':'',
-                    'dict_user_table':{},
-                    'sun': [],
-                    'mon': [],
-                    'tue': [],
-                    'wed': [],
-                    'thu': [],
-                    'fri': [],
-                    'sat': []
-                  }
-    
-# Takes in the list of names and returns a nice string
-def day_print(guild_id, day):
-    global guilds
+def day_print(guild_id, lst_users):
     ret_str = ""
 
-    lst_names = guilds[guild_id][day]
-
-    for n,user_id in enumerate(lst_names):
-        user = client.get_guild(guild_id).get_member(user_id)
+    for n,user_id in enumerate(lst_users):
+        user = client.get_guild(int(guild_id)).get_member(int(user_id)) 
         if user.nick is not None:
             name = user.nick
         else:
@@ -59,157 +42,127 @@ def day_print(guild_id, day):
 
     return ret_str
 
+def grab_day(df,day):
+    try:
+        lst_day = df.groupby('day')['user_id'].unique()[day]
+    except Exception as ex:
+        lst_day = []
+    return lst_day
+
 @client.event
 async def on_ready():
-    global guilds
+    DataConnector.create_engine(DB_URL)
+    df_all_guilds = pd.DataFrame()
+    df = DataConnector.read_data('SELECT * FROM hasibot_dev.guilds')
+    df_all_guilds = pd.concat([df_all_guilds,df])
     async for guild in client.fetch_guilds(limit=150):
-        init_guilds(guild.id, None)
+        if str(guild.id) not in df_all_guilds['guild_id'].tolist():
+            dict_guild = {'guild_id':str(guild.id), 'channel_id':'','message_id':''}
+            df_guild = pd.DataFrame([dict_guild])
+            df_all_guilds = pd.concat([df_all_guilds,df_guild])
+    
+    DataConnector.run_query("TRUNCATE TABLE hasibot_dev.guilds")
+    DataConnector.write_data(df_all_guilds, 'hasibot_dev','guilds', 'append')
+    print("Bot is ready!")
 
 @client.event
 async def on_guild_join(guild):
-    global guilds
-    
-    guilds[guild.id] = {'channel_id':None,
-                    'message_id':'',
-                    'dict_user_table':{},
-                    'sun': [],
-                    'mon': [],
-                    'tue': [],
-                    'wed': [],
-                    'thu': [],
-                    'fri': [],
-                    'sat': []
-                  }
+    query = open("data/guild_join_query.txt").read().replace("\n"," ").format(str(guild.id))
+    DataConnector.run_query(query)
 
 @client.event
 async def on_guild_remove(guild):
-    global guilds
-    
-    guilds.pop(guild.id,None)
+    DataConnector.run_query("DELETE FROM hasibot_dev.guilds WHERE guild_id = '" + str(guild.id) + "';" + \
+                            "DELETE FROM hasibot_dev.days WHERE guild_id = '" + str(guild.id) + "';")
 
 @client.event
 async def on_raw_reaction_add(payload):
-    global guilds
     global day_emotes
-    guild_id = payload.guild_id
-    channel = client.get_channel(guilds[guild_id]['channel_id'])
-    message_id = guilds[guild_id]['message_id']
+    guild_id = str(payload.guild_id)
+    df_channel = DataConnector.read_data("SELECT message_id,channel_id FROM hasibot_dev.guilds WHERE guild_id = '" + guild_id + "'")
+    channel = client.get_channel(int(df_channel['channel_id'][0]))
+
+    message_id = df_channel['message_id'][0]
     if (channel is None) or (message_id == ''):
         return
     
-    if (channel.id == guilds[guild_id]['channel_id']) and (payload.message_id == message_id):
+    if payload.message_id == int(message_id):
         day = payload.emoji.name
         if day in day_emotes:
-            guilds[guild_id][day].append(payload.member.id)
+            now = datetime.datetime.now(time_zone).strftime("%Y-%m-%d_%H:%M:%S.%f")
+            dict_val = {'guild_id':guild_id,'day':str(day),'user_id':str(payload.member.id), 'insert_ts':now}
+            df_val = pd.DataFrame([dict_val])
+            DataConnector.write_data(df_val, 'hasibot_dev','days')
 
 @client.event
 async def on_raw_reaction_remove(payload):
-    global guilds
     global day_emotes
-    guild_id  = payload.guild_id
-    channel = client.get_channel(guilds[guild_id]['channel_id'])
-    message_id = guilds[guild_id]['message_id']
-    user_list = guilds[guild_id]['dict_user_table'].keys()
-
+    guild_id = str(payload.guild_id)
+    df_channel = DataConnector.read_data("SELECT message_id,channel_id FROM hasibot_dev.guilds WHERE guild_id = '" + guild_id + "'")
+    channel = client.get_channel(int(df_channel['channel_id'][0]))
+ 
+    message_id = df_channel['message_id'][0]
     if (channel is None) or (message_id == ''):
         return
 
-    if (channel.id == guilds[guild_id]['channel_id']) and (payload.message_id == message_id):
-        user = payload.user_id
-
-        day = payload.emoji.name
-        if day in day_emotes:
-            day_list = guilds[guild_id][day]
-
-        day_list.remove(user)
+    if payload.message_id == int(message_id):
+        user = str(payload.user_id)
+        day = str(payload.emoji.name)
+        DataConnector.run_query("DELETE FROM hasibot_dev.days WHERE user_id='" + user + "' AND day = '" + day + "'")
 
 @client.event
 async def on_message(message):
-    global guilds
     global day_emotes
-    guild_id = message.guild.id
+    guild_id = str(message.guild.id)
 
     if '~.watch_channel' in message.content.lower():
         str_input = message.content.lower()
-        guilds[guild_id]['channel_id'] = int(str_input[16:])
-    elif '~.watch_message' in message.content.lower():
-        temp_id = guilds[guild_id]['channel_id']
-        # reinitialize the guilds entry
-        init_guilds(guild_id, temp_id)
+        DataConnector.run_query("UPDATE hasibot_dev.guilds SET channel_id = '" + \
+                                 str_input[16:] + "' WHERE guild_id='" + str(guild_id) + "'")
+
+        await message.channel.send('Watching channel: ' + str_input[16:])
+    elif '~.watch_message' in message.content.lower():         
         str_input = message.content.lower()
-        guilds[guild_id]['message_id'] = int(str_input[16:])
-    elif '~.update_ut' in message.content.lower():
-        lst_members = client.get_guild(guild_id).members
-        
-        for member in lst_members:
-            name =  member.nick
-            if name is None:
-                name = member.name
-        
-            guilds[guild_id]['dict_user_table'][name.lower()] = member.id
-        await message.channel.send('User Table Updated!')
-    elif '~.load_id' in message.content.lower():
-        str_input = message.content.lower()[10:]
-
-        day = str_input[:3]
-        str_input = str_input[4:]
-     
-        if day in day_emotes:
-            lst_ids = eval(str_input)
-            lst_guild_ids = [member.id for member in client.get_guild(guild_id).members]
-            
-            set1 = set(lst_guild_ids)
-            set2 = set(lst_ids)
-            
-            bad_diff = set2-set1
-            
-            lst_bad_items = []
-            while len(bad_diff) > 0:
-                bad_item = bad_diff.pop()
-                lst_bad_items.append(bad_item)
-                lst_ids.remove(bad_item)
-                
-            # list(set(lst_guild_ids) - set(lst_ids))
-            
-            guilds[guild_id][day] = lst_ids
-
-        await message.channel.send('Loaded ids for day: {}, Ids failed: {}'.format(day,lst_bad_items))
-    elif '~.load' in message.content.lower():
-        str_input = message.content.lower()[7:]
-        
-        day = str_input[:3]
-        str_input = str_input[4:]
-
-        if day in day_emotes:
-            lst_names = eval(str_input)
-            
-            guilds[guild_id][day] = []
-            for name in lst_names:
-                if name in guilds[guild_id]['dict_user_table'].keys():
-                    user_id = guilds[guild_id]['dict_user_table'][name.lower()]
-                    guilds[guild_id][day].append(user_id)
-                else:
-                    await message.channel.send('Name {} missing in ut'.format(name))
-
-        await message.channel.send('Loaded ' + day)
-        
+        DataConnector.run_query("UPDATE hasibot_dev.guilds SET message_id = '" + \
+                                 str_input[16:] + "' WHERE guild_id='" + guild_id + "';" + \
+                                 "DELETE FROM hasibot_dev.days WHERE guild_id='" + guild_id + "';"+ \
+                                 "INSERT INTO hasibot_dev.days VALUES ('" + guild_id + "', '', '', '')")
+        await message.channel.send('Watching message: ' + str_input[16:])
+#     elif '~.update_ut' in message.content.lower():
+#         lst_members = client.get_guild(guild_id).members
+#         
+#         df_ut = pd.DataFrame()
+#         for member in lst_members:
+#             name =  member.nick
+#             if name is None:
+#                 name = member.name
+#         
+#             dict_data = {'user_id': str(member.id), 'nick':str(name).lower()}
+#             df_data = pd.DataFrame([dict_data])
+#             df_ut = pd.concat([df_ut,df_data])
+#         df_ut['guild_id'] = str(guild_id)
+#         
+#         cols = ['guild_id','user_id','nick']
+#         df_ut = df_ut[cols]
+#         DataConnector.run_query("DELETE FROM hasibot_dev.user_table WHERE guild_id = '" + str(guild_id) + "'")
+#         DataConnector.write_data(df_ut,'hasibot_dev','user_table','append')
+#         await message.channel.send('User Table Updated!')
     elif '~.hasi' in message.content.lower():
         str_input = message.content.lower()[7:]
-
-        # Formulate the string
+        df = DataConnector.read_data("SELECT * FROM hasibot_dev.days WHERE guild_id = '" + guild_id + "'")
+        
         if str_input in day_emotes:
-            str_data = "```CSS\n#" + str_input.capitalize() + ": \n" + day_print(guild_id, str_input) + "```"
+            str_final = "```md\n#" + str_input.capitalize() + ":\n{}\n```".format(day_print(guild_id,grab_day(df,str_input)))
         else:
-            # Default: send lists for every day
-            str_data = "```CSS\n#Sun:\n{}\n#Mon:\n{}\n#Tue:\n{}\n#Wed:\n{}\n#Thu:\n{}\n#Fri:\n{}\n#Sat:\n{}```".format(day_print(guild_id, 'sun'),
-                                                           day_print(guild_id,'mon'),
-                                                           day_print(guild_id,'tue'),
-                                                           day_print(guild_id,'wed'),
-                                                           day_print(guild_id,'thu'),
-                                                           day_print(guild_id,'fri'),
-                                                           day_print(guild_id,'sat'))
-        # Send the string
-        await message.channel.send(str_data)
+            str_final = "```md\n#Sun:\n{}\n#Mon:\n{}\n#Tue:\n{}\n#Wed:\n{}\n#Thu:\n{}\n#Fri:\n{}\n#Sat:\n{}\n```".format(
+                                                               day_print(guild_id,grab_day(df,'sun')),
+                                                               day_print(guild_id,grab_day(df,'mon')),
+                                                               day_print(guild_id,grab_day(df,'tue')),
+                                                               day_print(guild_id,grab_day(df,'wed')),
+                                                               day_print(guild_id,grab_day(df,'thu')),
+                                                               day_print(guild_id,grab_day(df,'fri')),
+                                                               day_print(guild_id,grab_day(df,'sat')))
+        await message.channel.send(str_final)
     elif '~.roll_echo' in message.content.lower():
         str_input = message.content.lower()
         str_input = str_input[12:]
@@ -218,48 +171,33 @@ async def on_message(message):
         resp = "It took {} attempts! The total stat is: {}".format(attempts,total_stat)
         
         await message.channel.send(str(resp))
-    
+    elif '~.roll_boosted_echo' in message.content.lower():
+        str_input = message.content.lower()
+        str_input = str_input[19:]
+        attempts,total_stat = get_boosted_echo_30()
+
+        resp = "It took {} attempts! The total stat is: {}".format(attempts,total_stat)
+        
+        await message.channel.send(str(resp))
     elif '~.print_info' in message.content.lower():
         str_input = message.content.lower()
         str_input = str_input[13:]
-        
-        df_final = pd.DataFrame()
-        df_final2 = pd.DataFrame()
-        
-        for guild in guilds.keys():
-            df = pd.DataFrame([guilds[guild]])
-            df['guild'] = guild
-            df['guild_name'] = client.get_guild(guild).name
-            df_final2 = pd.concat([df_final2,df])
-            df['sun'] = len(df['sun'][0])
-            df['mon'] = len(df['mon'][0])
-            df['tue'] = len(df['tue'][0])
-            df['wed'] = len(df['wed'][0])
-            df['thu'] = len(df['thu'][0])
-            df['fri'] = len(df['fri'][0])
-            df['sat'] = len(df['sat'][0])
-            df_final = pd.concat([df_final, df])
-
-        cols = ['guild','guild_name','channel_id','message_id','sun','mon','tue','wed','thu','fri','sat']
-        df_final = df_final[cols]
-        df_final2 = df_final2[cols]
-
         lst_args = str_input.split(" ")
 
+        query = open('data/day_query.txt').read().replace('\n',' ')
+        df = DataConnector.read_data(query)
+        dict_map = {}
+        for i in client.guilds:
+            dict_map[str(i.id)] = i.name
 
-        # import pdb; pdb.set_trace();
+        df['guild_name'] = df['guild_id'].map(dict_map) 
+        cols = ['guild_name','guild_id','channel_id','message_id','sun','mon','tue','wed','thu','fri','sat']
+        df = df[cols]
+
         if lst_args[0].lower() == 'gid' and len(lst_args) == 2:
-            df_final = df_final[df_final['guild'] == int(lst_args[1])]
-        elif lst_args[0].lower() == 'gid' and len(lst_args) == 3:
-            df_final2 = df_final2[df_final['guild'] == int(lst_args[1])]
-            df_final2 = df_final2[lst_args[2]][0]
-            df_final = df_final2
-        
-        if type(df_final) == list:
-            str_final = "```\n" + str(df_final) + "\n```"
-        else:
-            str_final = "```\n" + str(df_final.transpose()) + "\n```"
-        
+            df = df[df['guild_id'] == lst_args[1]]
+
+        str_final = "```\n" + str(df.transpose()) + "\n```"
         await message.channel.send(str_final)
     elif '~.search items' in message.content.lower():
         str_input = message.content.lower()

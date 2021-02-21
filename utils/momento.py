@@ -1,5 +1,5 @@
 import random
-from config import min_stats,max_stats,rates,echostone
+from config import min_stats,max_stats,rates,boosted_rates,echostone
 
 def roll_supplement(grade):
     min_stat = min_stats[grade]
@@ -17,6 +17,28 @@ def get_echo_30():
     while grade < 29:
         roll = random.random()
         success = roll < rates[grade-1]
+        stat_roll = roll_supplement(grade)
+        if success:
+            grade = grade + 1
+            total_stat = total_stat + stat_roll
+            if grade > 24:
+                stat_gains.append(stat_roll)
+        elif grade > 24:
+            grade = grade - 1
+            total_stat = total_stat - stat_gains.pop()
+        attempts = attempts + 1
+        
+    return attempts, total_stat
+
+def get_boosted_echo_30():
+    total_stat = 1
+    grade = 1
+    attempts = 0
+    stat_gains = []
+    
+    while grade < 29:
+        roll = random.random()
+        success = roll < boosted_rates[grade-1]
         stat_roll = roll_supplement(grade)
         if success:
             grade = grade + 1
