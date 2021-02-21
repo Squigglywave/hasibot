@@ -7,6 +7,7 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')      # Bot token
 SCHEMA_NAME = os.getenv('ENVIRONMENT')
 DB_URL = os.getenv('DATABASE_URL')
+PATH = os.getenv('PROJECT_FOLDER')
 
 time_zone = pytz.timezone("US/Pacific")
 

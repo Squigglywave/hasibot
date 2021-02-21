@@ -12,9 +12,6 @@ import pandas as pd
 from utils import DataProcessor
 from config import TOKEN
 
-
-# Load different variables based on environment
-
 # Intents used to track guild member lists
 intents = discord.Intents.all()
 intents.members = True
@@ -26,7 +23,6 @@ client = discord.Client(intents=intents)
 # List of acceptable day emoji names; Discord server needs to name the emojis in
 # this exact format
 day_emotes = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
-
 
 ###################
 # Discord Methods #

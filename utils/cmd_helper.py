@@ -2,7 +2,7 @@
 import pandas as pd
 
 # Application Specific Library
-from config import SCHEMA_NAME, lst_scols, DB_URL, time_zone
+from config import SCHEMA_NAME, lst_scols, DB_URL, time_zone, PATH
 from .momento import get_echo_30, get_boosted_echo_30
 from .helpers import grab_day, day_print
 from .connector import DataConnector
@@ -49,7 +49,7 @@ class DataProcessor():
         '''
         # This query checks if an entry already exists before inserting into the table.
         # If the entry exists, nothing is done.
-        query = open("data/guild_join_query.txt").read().format(SCHEMA_NAME, str(guild.id))
+        query = open(PATH + "data/guild_join_query.txt").read().format(SCHEMA_NAME, str(guild.id))
         DataConnector.run_query(query)
 
     @classmethod
@@ -69,7 +69,7 @@ class DataProcessor():
                                     DELETE FROM {0}.days
                                     WHERE guild_id = '{1}';
                                  """).format(SCHEMA_NAME, str(guild.id)))
-    
+
     @classmethod
     def _on_raw_reaction_add(cls, payload):
         '''
@@ -78,7 +78,7 @@ class DataProcessor():
         - Returns if the payload's message id is not the one being watched
         - On new reacts to the watched message, add the user ID that reacted to a
           queue for the reacted day
-    
+
         Arguments:
         - payload   RawReactionActionEvent  a Discord object
         '''
@@ -226,7 +226,7 @@ class DataProcessor():
         # Prints some metadata and day counts
         # - cmd[1] optional gid flag
         # - cmd[2] if gid flag supplied, this is the guild ID as a string
-        query = open('data/day_query.txt').read().format(SCHEMA_NAME)
+        query = open(PATH + 'data/day_query.txt').read().format(SCHEMA_NAME)
         df = DataConnector.read_data(query)
 
         # Add guild names for all found guilds
