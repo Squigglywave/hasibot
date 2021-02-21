@@ -156,8 +156,7 @@ async def on_raw_reaction_add(payload):
     Arguments:
     - payload   RawReactionActionEvent  a Discord object
     '''
-#TODO: improvements like calling the query after simple early return checks?
-#      is channel needed?
+#TODO is channel needed?
     global day_emotes
     guild_id = str(payload.guild_id)
 
@@ -195,8 +194,7 @@ async def on_raw_reaction_remove(payload):
     Arguments:
     - payload   RawReactionActionEvent  a Discord object
     '''
-#TODO: improvements like calling the query after simple early return checks?
-#      is channel needed?
+#TODO is channel needed?
     global day_emotes
     guild_id = str(payload.guild_id)
 
