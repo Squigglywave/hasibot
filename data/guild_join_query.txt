@@ -1,14 +1,14 @@
-INSERT INTO hasibot_dev.guilds
+INSERT INTO {0}.guilds
     (guild_id, channel_id, message_id)
-SELECT '{0}','',''
+SELECT '{1}','',''
 WHERE
     NOT EXISTS (
-        SELECT guild_id FROM hasibot_dev.guilds WHERE guild_id = '{0}'
+        SELECT guild_id FROM {0}.guilds WHERE guild_id = '{1}'
     );
-INSERT INTO hasibot_dev.days
+INSERT INTO {0}.days
     (guild_id, day, user_id, insert_ts)
-SELECT '{0}','','',''
+SELECT '{1}','','',''
 WHERE
     NOT EXISTS (
-        SELECT guild_id FROM hasibot_dev.days WHERE guild_id = '{0}'
+        SELECT guild_id FROM {0}.days WHERE guild_id = '{1}'
     );

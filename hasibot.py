@@ -16,8 +16,14 @@ from config import lst_scols, time_zone
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-
+ENVIRONMENT = os.getenv('ENVIRONMENT')
 DB_URL = os.getenv('DATABASE_URL')
+
+if ENVIRONMENT == 'DEV':
+    SCHEMA_NAME = 'hasibot_dev'
+elif ENVIRONMENT == 'PROD':
+    SCHEMA_NAME = 'hasibot'
+
 
 intents = discord.Intents.all()
 intents.members = True
@@ -53,7 +59,7 @@ def grab_day(df,day):
 async def on_ready():
     DataConnector.create_engine(DB_URL)
     df_all_guilds = pd.DataFrame()
-    df = DataConnector.read_data('SELECT * FROM hasibot_dev.guilds')
+    df = DataConnector.read_data('SELECT * FROM {}.guilds'.format(SCHEMA_NAME))
     df_all_guilds = pd.concat([df_all_guilds,df])
     async for guild in client.fetch_guilds(limit=150):
         if str(guild.id) not in df_all_guilds['guild_id'].tolist():
@@ -61,25 +67,25 @@ async def on_ready():
             df_guild = pd.DataFrame([dict_guild])
             df_all_guilds = pd.concat([df_all_guilds,df_guild])
     
-    DataConnector.run_query("TRUNCATE TABLE hasibot_dev.guilds")
-    DataConnector.write_data(df_all_guilds, 'hasibot_dev','guilds', 'append')
+    DataConnector.run_query("TRUNCATE TABLE {}.guilds".format(SCHEMA_NAME))
+    DataConnector.write_data(df_all_guilds, SCHEMA_NAME,'guilds', 'append')
     print("Bot is ready!")
 
 @client.event
 async def on_guild_join(guild):
-    query = open("data/guild_join_query.txt").read().replace("\n"," ").format(str(guild.id))
+    query = open("data/guild_join_query.txt").read().replace("\n"," ").format(SCHEMA_NAME,str(guild.id))
     DataConnector.run_query(query)
 
 @client.event
 async def on_guild_remove(guild):
-    DataConnector.run_query("DELETE FROM hasibot_dev.guilds WHERE guild_id = '" + str(guild.id) + "';" + \
-                            "DELETE FROM hasibot_dev.days WHERE guild_id = '" + str(guild.id) + "';")
+    DataConnector.run_query("DELETE FROM " + SCHEMA_NAME + ".guilds WHERE guild_id = '" + str(guild.id) + "';" + \
+                            "DELETE FROM " + SCHEMA_NAME + ".days WHERE guild_id = '" + str(guild.id) + "';")
 
 @client.event
 async def on_raw_reaction_add(payload):
     global day_emotes
     guild_id = str(payload.guild_id)
-    df_channel = DataConnector.read_data("SELECT message_id,channel_id FROM hasibot_dev.guilds WHERE guild_id = '" + guild_id + "'")
+    df_channel = DataConnector.read_data("SELECT message_id,channel_id FROM " + SCHEMA_NAME + ".guilds WHERE guild_id = '" + guild_id + "'")
     channel = client.get_channel(int(df_channel['channel_id'][0]))
 
     message_id = df_channel['message_id'][0]
@@ -92,13 +98,13 @@ async def on_raw_reaction_add(payload):
             now = datetime.datetime.now(time_zone).strftime("%Y-%m-%d_%H:%M:%S.%f")
             dict_val = {'guild_id':guild_id,'day':str(day),'user_id':str(payload.member.id), 'insert_ts':now}
             df_val = pd.DataFrame([dict_val])
-            DataConnector.write_data(df_val, 'hasibot_dev','days')
+            DataConnector.write_data(df_val, SCHEMA_NAME,'days')
 
 @client.event
 async def on_raw_reaction_remove(payload):
     global day_emotes
     guild_id = str(payload.guild_id)
-    df_channel = DataConnector.read_data("SELECT message_id,channel_id FROM hasibot_dev.guilds WHERE guild_id = '" + guild_id + "'")
+    df_channel = DataConnector.read_data("SELECT message_id,channel_id FROM " + SCHEMA_NAME + ".guilds WHERE guild_id = '" + guild_id + "'")
     channel = client.get_channel(int(df_channel['channel_id'][0]))
  
     message_id = df_channel['message_id'][0]
@@ -108,7 +114,7 @@ async def on_raw_reaction_remove(payload):
     if payload.message_id == int(message_id):
         user = str(payload.user_id)
         day = str(payload.emoji.name)
-        DataConnector.run_query("DELETE FROM hasibot_dev.days WHERE user_id='" + user + "' AND day = '" + day + "'")
+        DataConnector.run_query("DELETE FROM " + SCHEMA_NAME + ".days WHERE user_id='" + user + "' AND day = '" + day + "'")
 
 @client.event
 async def on_message(message):
@@ -117,16 +123,16 @@ async def on_message(message):
 
     if '~.watch_channel' in message.content.lower():
         str_input = message.content.lower()
-        DataConnector.run_query("UPDATE hasibot_dev.guilds SET channel_id = '" + \
+        DataConnector.run_query("UPDATE " + SCHEMA_NAME + ".guilds SET channel_id = '" + \
                                  str_input[16:] + "' WHERE guild_id='" + str(guild_id) + "'")
 
         await message.channel.send('Watching channel: ' + str_input[16:])
     elif '~.watch_message' in message.content.lower():         
         str_input = message.content.lower()
-        DataConnector.run_query("UPDATE hasibot_dev.guilds SET message_id = '" + \
+        DataConnector.run_query("UPDATE " + SCHEMA_NAME + ".guilds SET message_id = '" + \
                                  str_input[16:] + "' WHERE guild_id='" + guild_id + "';" + \
-                                 "DELETE FROM hasibot_dev.days WHERE guild_id='" + guild_id + "';"+ \
-                                 "INSERT INTO hasibot_dev.days VALUES ('" + guild_id + "', '', '', '')")
+                                 "DELETE FROM " + SCHEMA_NAME + ".days WHERE guild_id='" + guild_id + "';"+ \
+                                 "INSERT INTO " + SCHEMA_NAME + ".days VALUES ('" + guild_id + "', '', '', '')")
         await message.channel.send('Watching message: ' + str_input[16:])
 #     elif '~.update_ut' in message.content.lower():
 #         lst_members = client.get_guild(guild_id).members
@@ -149,7 +155,7 @@ async def on_message(message):
 #         await message.channel.send('User Table Updated!')
     elif '~.hasi' in message.content.lower():
         str_input = message.content.lower()[7:]
-        df = DataConnector.read_data("SELECT * FROM hasibot_dev.days WHERE guild_id = '" + guild_id + "'")
+        df = DataConnector.read_data("SELECT * FROM " + SCHEMA_NAME + ".days WHERE guild_id = '" + guild_id + "'")
         
         if str_input in day_emotes:
             str_final = "```md\n#" + str_input.capitalize() + ":\n{}\n```".format(day_print(guild_id,grab_day(df,str_input)))
@@ -184,7 +190,7 @@ async def on_message(message):
         str_input = str_input[13:]
         lst_args = str_input.split(" ")
 
-        query = open('data/day_query.txt').read().replace('\n',' ')
+        query = open('data/day_query.txt').read().replace('\n',' ').format(SCHEMA_NAME)
         df = DataConnector.read_data(query)
         dict_map = {}
         for i in client.guilds:
