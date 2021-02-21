@@ -349,22 +349,6 @@ async def on_message(message):
                                        day_print(guild_id, grab_day(df, 'sat')))
         await message.channel.send(str_final)
 
-    elif cmd[0] == '~.roll_echo':
-        # Roll a g30 echostone at normal rates (adv Sidhe)
-        attempts, total_stat = get_echo_30()
-
-        resp = "It took {} attempts! The total stat is: {}".format(attempts, total_stat)
-
-        await message.channel.send(resp)
-
-    elif cmd[0] == '~.roll_boosted_echo':
-        # Roll a g30 echostone at event rates (adv Sidhe + 10%)
-        attempts, total_stat = get_boosted_echo_30()
-
-        resp = "It took {} attempts! The total stat is: {}".format(attempts, total_stat)
-
-        await message.channel.send(resp)
-
     elif cmd[0] == '~.print_info':
         # Prints some metadata and day counts
         # - cmd[1] optional gid flag
@@ -388,6 +372,22 @@ async def on_message(message):
 
         str_final = "```\n" + str(df.transpose()) + "\n```"
         await message.channel.send(str_final)
+
+    elif cmd[0] == '~.roll_echo':
+        # Roll a g30 echostone at normal rates (adv Sidhe)
+        attempts, total_stat = get_echo_30()
+
+        resp = "It took {} attempts! The total stat is: {}".format(attempts, total_stat)
+
+        await message.channel.send(resp)
+
+    elif cmd[0] == '~.roll_boosted_echo':
+        # Roll a g30 echostone at event rates (adv Sidhe + 10%)
+        attempts, total_stat = get_boosted_echo_30()
+
+        resp = "It took {} attempts! The total stat is: {}".format(attempts, total_stat)
+
+        await message.channel.send(resp)
 
     elif cmd[0] == '~.search':
         # Run Jerry search
