@@ -18,18 +18,21 @@ class guilds():
 def gid():
     return '775944111463202846'
 
+@pytest.fixture(scope="module")
+def obj_guild():
+    obj_guild = guilds()
+    return obj_guild
+
 def setup_module(module):
     DataConnector.create_engine(DB_URL)
 
 @pytest.mark.ready
-def test_on_ready(gid):
+def test_on_ready(gid,obj_guild):
     DataConnector.run_query("DELETE FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
 
     df = DataConnector.read_data("SELECT * FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
 
     assert df.shape[0] == 0
-
-    obj_guild = guilds()
     
     lst_guilds = []
     lst_guilds.append(obj_guild)
@@ -41,7 +44,7 @@ def test_on_ready(gid):
     assert df.shape[0] == 1
 
 @pytest.mark.join
-def test_on_guild_join(gid):
+def test_on_guild_join(gid,obj_guild):
     # Make sure guild is removed from guilds table
     DataConnector.run_query("DELETE FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
     df = DataConnector.read_data("SELECT * FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
@@ -51,8 +54,6 @@ def test_on_guild_join(gid):
     DataConnector.run_query("DELETE FROM {}.days WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
     df = DataConnector.read_data("SELECT * FROM {}.days WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
     assert df.shape[0] == 0
-
-    obj_guild = guilds()
 
     # Check on guild join
     DataProcessor._on_guild_join(obj_guild)
@@ -72,14 +73,15 @@ def test_on_guild_join(gid):
     assert df.shape[0] == 1
 
 @pytest.mark.remove
-def test_on_guild_remove(gid):
+def test_on_guild_remove(gid,obj_guild):
+    DataProcessor._on_guild_join(obj_guild)
+
     # Ensure that size 1
     df = DataConnector.read_data("SELECT * FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
     assert df.shape[0] == 1
     df = DataConnector.read_data("SELECT * FROM {}.days WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
     assert df.shape[0] == 1
 
-    obj_guild = guilds()
 
     # Remove the guild and verify none in guilds and days tables
     DataProcessor._on_guild_remove(obj_guild)
@@ -88,14 +90,35 @@ def test_on_guild_remove(gid):
     df = DataConnector.read_data("SELECT * FROM {}.days WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
     assert df.shape[0] == 0
 
+    DataProcessor._on_guild_join(obj_guild)
+
 @pytest.mark.add_react
 def test_on_raw_reaction_add():
     pass
 
 
 @pytest.mark.watch_ch
-def test_on_message_watch_channel(gid):
+def test_on_message_watch_channel(gid,obj_guild):
+    DataProcessor._on_guild_join(obj_guild)
+
     cid = '1234567890'
     DataProcessor._on_message_watch_channel(gid, cid)
     df = DataConnector.read_data("SELECT channel_id FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
     assert df['channel_id'][0] == cid
+
+    DataProcessor._on_guild_join(obj_guild)
+
+
+@pytest.mark.watch_msg
+def test_on_message_watch_message(gid,obj_guild):
+    DataProcessor._on_guild_join(obj_guild)
+
+    mid = '1234567890'
+    DataProcessor._on_message_watch_message(gid,mid)
+    df = DataConnector.read_data("SELECT message_id FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
+    assert df['message_id'][0] == mid
+
+    df = DataConnector.read_data("SELECT COUNT(*) FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
+    assert df['count'][0] == 1
+    
+    DataProcessor._on_guild_join(obj_guild)

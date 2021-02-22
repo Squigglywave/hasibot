@@ -1,5 +1,11 @@
+# Standard Library
+import datetime
+
 # Third Party Library
 import pandas as pd
+import requests
+import discord
+import xml.etree.ElementTree as ET
 
 # Application Specific Library
 from config import SCHEMA_NAME, lst_scols, DB_URL, time_zone, PATH
@@ -71,7 +77,7 @@ class DataProcessor():
                                  """).format(SCHEMA_NAME, str(guild.id)))
 
     @classmethod
-    def _on_raw_reaction_add(cls, payload):
+    def _on_raw_reaction_add(cls, client, payload):
         '''
         Executes when a reaction in a guild is added.
         - Returns if the guild's watched channel and message have not been set
@@ -83,7 +89,6 @@ class DataProcessor():
         - payload   RawReactionActionEvent  a Discord object
         '''
     #TODO is channel needed?
-        global day_emotes
         guild_id = str(payload.guild_id)
     
         # Run query to get the channel and message IDs for the requesting guild
@@ -102,14 +107,14 @@ class DataProcessor():
             # Get the reaction and insert an entry into the days table if the
             # reaction is valid.
             day = str(payload.emoji.name)
-            if day in day_emotes:
+            if day in cls.day_emotes:
                 now = datetime.datetime.now(time_zone).strftime("%Y-%m-%d_%H:%M:%S.%f")
                 dict_val = {'guild_id':guild_id, 'day':str(day), 'user_id':str(payload.member.id), 'insert_ts':now}
                 df_val = pd.DataFrame([dict_val])
                 DataConnector.write_data(df_val, SCHEMA_NAME, 'days')
         
     @classmethod
-    def _on_raw_reaction_remove(cls, payload):
+    def _on_raw_reaction_remove(cls, client, payload):
         '''
         Executes when a reaction in a guild is removed.
         - Returns if the guild's watched channel and message have not been set
@@ -121,7 +126,6 @@ class DataProcessor():
         - payload   RawReactionActionEvent  a Discord object
         '''
     #TODO is channel needed?
-        global day_emotes
         guild_id = str(payload.guild_id)
     
         # Run query to get the channel and message IDs for the requesting guild
@@ -185,7 +189,7 @@ class DataProcessor():
         return str_final
 
     @classmethod
-    def _on_message_hasi(cls, guild_id, day):
+    def _on_message_hasi(cls, client, guild_id, day):
 
         # Print out the specific day or all days
         # - cmd[1] optional day
@@ -200,7 +204,7 @@ class DataProcessor():
             str_final = ("```md\n"    + \
                          "#{0}:\n{1}\n" + \
                          "```").format(day.capitalize(),
-                                       day_print(guild_id, grab_day(df, day)))
+                                       day_print(client, guild_id, grab_day(df, day)))
         else:
             str_final = ("```md\n"     + \
                          "#Sun:\n{0}\n" + \
@@ -210,19 +214,19 @@ class DataProcessor():
                          "#Thu:\n{4}\n" + \
                          "#Fri:\n{5}\n" + \
                          "#Sat:\n{6}\n" + \
-                         "```").format(day_print(guild_id, grab_day(df, 'sun')),
-                                       day_print(guild_id, grab_day(df, 'mon')),
-                                       day_print(guild_id, grab_day(df, 'tue')),
-                                       day_print(guild_id, grab_day(df, 'wed')),
-                                       day_print(guild_id, grab_day(df, 'thu')),
-                                       day_print(guild_id, grab_day(df, 'fri')),
-                                       day_print(guild_id, grab_day(df, 'sat')))
+                         "```").format(day_print(client, guild_id, grab_day(df, 'sun')),
+                                       day_print(client, guild_id, grab_day(df, 'mon')),
+                                       day_print(client, guild_id, grab_day(df, 'tue')),
+                                       day_print(client, guild_id, grab_day(df, 'wed')),
+                                       day_print(client, guild_id, grab_day(df, 'thu')),
+                                       day_print(client, guild_id, grab_day(df, 'fri')),
+                                       day_print(client, guild_id, grab_day(df, 'sat')))
 
         return str_final
 
 
     @classmethod
-    def _on_message_print_info(cls, guild_id=''):
+    def _on_message_print_info(cls, client, guild_id=''):
         # Prints some metadata and day counts
         # - cmd[1] optional gid flag
         # - cmd[2] if gid flag supplied, this is the guild ID as a string
@@ -246,6 +250,23 @@ class DataProcessor():
         str_final = "```\n" + str(df.transpose()) + "\n```"
 
         return str_final
+
+    @classmethod
+    def _erg(cls, guild_id, user_id):
+        df = DataConnector.read_data("SELECT * FROM {}.erg WHERE user_id='{}'".format(SCHEMA_NAME,user_id)) 
+        if df.shape[0] == 0:
+            success = roll_erg(0)
+            if success:
+                DataConnector.run_query("INSERT INTO {}.erg VALUES ({},1,1,0,1)".format(SCHEMA_NAME,user_id))
+            else:
+                DataConnector.run_query("INSERT INTO {}.erg VALUES ({},0,1,0,1)".format(SCHEMA_NAME,user_id))
+        else:
+            success = roll_erg(df['erg_rank'][0])
+            if success:
+                if df['erg_rank'][0] < 8:
+                    query = "UPDATE {}.erg SET erg_rank = erg_rank + 1,current_count = 0, total_count = total_count + 1 WHERE user_id={}".format(SCHEMA_NAME,user_id)
+                           
+        
 
     @classmethod
     def _on_message_roll_echo(cls):
@@ -276,7 +297,7 @@ class DataProcessor():
         # - cmd[2...] name of what to search
 
 
-        dict_resp = {}
+        dict_res = {}
 
         if option == 'item' or option == 'items':
             # Search for an item
@@ -363,5 +384,9 @@ class DataProcessor():
             dict_res['status'] = 2
             dict_res['link'] = link
             dict_res['str_final'] = str_final
+
+            return dict_res
+        else:
+            dict_res['status'] = -1
 
             return dict_res

@@ -1,6 +1,5 @@
 # Standard Library
 import io
-import xml.etree.ElementTree as ET
 import datetime
 
 # Third Party Library
@@ -53,14 +52,14 @@ async def on_raw_reaction_add(payload):
     '''
     Discord call when a person reacts to a message.
     '''
-    DataProcessor._on_raw_reaction_add(payload)
+    DataProcessor._on_raw_reaction_add(client, payload)
 
 @client.event
 async def on_raw_reaction_remove(payload):
     '''
     Discord call when a person unreacts to a message.
     '''
-    DataProcessor._on_raw_reaction_remove(payload)
+    DataProcessor._on_raw_reaction_remove(client, payload)
 
 @client.event
 async def on_message(message):
@@ -82,6 +81,7 @@ async def on_message(message):
     '''
     global day_emotes
     guild_id = str(message.guild.id)
+    user_message_id = str(message.author.id)
 
     # Quick optimization as this bot is watching all messages; early return
     # if the message does not start with a '~' character
@@ -117,15 +117,18 @@ async def on_message(message):
         if len(cmd) > 1:
             day = cmd[1]
             
-        str_final = DataConnector._on_message_hasi(guild_id, day)
+        str_final = DataProcessor._on_message_hasi(client, guild_id, day)
         await message.channel.send(str_final)
     elif cmd[0] == '~.print_info':
         gid = ''
         if len(cmd) == 3 and cmd[1] == 'gid':
              gid = cmd[2]
 
-        str_final = DataProcessor._on_message_print_info(gid)
+        str_final = DataProcessor._on_message_print_info(client, gid)
         await message.channel.send(str_final)
+    elif cmd[0] == '~.erg':
+        DataProcessor._erg(user_message_id)
+        
     elif cmd[0] == '~.roll_echo':
         str_final = DataProcessor._on_message_roll_echo()
 
@@ -135,8 +138,10 @@ async def on_message(message):
 
         await message.channel.send(str_final)
     elif cmd[0] == '~.search':
+        str_usage = "```\nUsage: ~.search <options> <name>\noptions:\n    item, items,\n    es\n```"
         # Quietly exit if not enough arguments
         if len(cmd) < 3:
+            await message.channel.send(content=str_usage)
             return
 
         # Combine the search term to a string
@@ -146,9 +151,11 @@ async def on_message(message):
         # Remove extra space
         term = term[:-1]
 
-        dict_res = DataProcessor._on_message_search(cmd[1])
+        dict_res = DataProcessor._on_message_search(cmd[1], term)
 
-        if dict_res['status'] == 0:
+        if dict_res['status'] == -1:
+            await message.channel.send(content=str_usage)
+        elif dict_res['status'] == 0:
             await message.channel.send(content=dict_res['str_final'])
         elif dict_res['status'] == 1:
             await message.channel.send(embed=dict_res['obj_embed'], content=dict_res['final_link'])

@@ -1,4 +1,4 @@
-def day_print(guild_id, lst_users):
+def day_print(client, guild_id, lst_users):
     '''
     Generates a numbered list of names.
 
