@@ -4,19 +4,13 @@ import pytest
 from config import DB_URL, SCHEMA_NAME
 from utils import DataConnector, DataProcessor
 
-# import discord
-# 
-# intents = discord.Intents.all()
-# intents.members = True
-# client = discord.Client(intents=intents)
-
 class guilds():
-    def __init__(self):
-        self.id = '775944111463202846'
+    def __init__(self, id='12345'):
+        self.id = id
 
 @pytest.fixture(scope="module")
 def gid():
-    return '775944111463202846'
+    return '12345'
 
 @pytest.fixture(scope="module")
 def obj_guild():
@@ -28,20 +22,53 @@ def setup_module(module):
 
 @pytest.mark.ready
 def test_on_ready(gid,obj_guild):
+    # New guild test
     DataConnector.run_query("DELETE FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
-
     df = DataConnector.read_data("SELECT * FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
-
     assert df.shape[0] == 0
-    
+
     lst_guilds = []
     lst_guilds.append(obj_guild)
 
     DataProcessor._on_ready(lst_guilds)
-
     df = DataConnector.read_data("SELECT * FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
-
     assert df.shape[0] == 1
+
+    # Same guild list test 
+    DataProcessor._on_ready(lst_guilds)
+    df = DataConnector.read_data("SELECT * FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,gid))
+    assert df.shape[0] == 1
+
+    # Additional guild test
+    new_gid='54321'
+    DataConnector.run_query("DELETE FROM {}.guilds WHERE guild_id='{}'".format(SCHEMA_NAME,new_gid))
+    new_obj_guild = guilds(new_gid)
+    lst_guilds.append(new_obj_guild)
+    DataProcessor._on_ready(lst_guilds)
+    df = DataConnector.read_data("""SELECT *
+                                    FROM {}.guilds
+                                    WHERE guild_id='{}' or guild_id='{}'
+                                 """.format(SCHEMA_NAME,gid,new_gid))
+    assert df.shape[0] == 2
+
+    # Removed guilds test
+    empty_lst_guilds = []
+    DataProcessor._on_ready(empty_lst_guilds)
+    df = DataConnector.read_data("""SELECT *
+                                    FROM {}.guilds
+                                    WHERE guild_id='{}' or guild_id='{}'
+                                 """.format(SCHEMA_NAME,gid,new_gid))
+    assert df.shape[0] == 0
+
+    # One last sanity check
+    lst_guilds.remove(new_obj_guild)
+    DataProcessor._on_ready(lst_guilds)
+    df = DataConnector.read_data("""SELECT *
+                                    FROM {}.guilds
+                                    WHERE guild_id='{}' or guild_id='{}'
+                                 """.format(SCHEMA_NAME,gid,new_gid))
+    assert df.shape[0] == 1
+
 
 @pytest.mark.join
 def test_on_guild_join(gid,obj_guild):

@@ -70,9 +70,10 @@ async def on_message(message):
       > watch_channel
       > watch_message
       > hasi
+      > print_info
+      > erg
       > roll_echo
       > roll_boosted_echo
-      > print_info
       > search items
       > search es
 
@@ -94,10 +95,9 @@ async def on_message(message):
     # Set command message lowercase and split by whitespace
     cmd = message.content.lower().split()
 
-#TODO:  better command sanitization?
-#       invalid input checking?
-
+    # Check input
     if cmd[0] == '~.watch_channel':
+        # Check for channel ID, return if no second argument
         if len(cmd) < 2:
             return
         DataProcessor._on_message_watch_channel(guild_id, cmd[1])

@@ -27,20 +27,47 @@ class DataProcessor():
         '''
         # Create the DB connection on start up
         DataConnector.create_engine(DB_URL)
+        guild_list_changed = False
 
-        #TODO: consider appending and not truncating and then appending
+        # Request the current list of guilds; create a DataFrame in case the
+        # database is empty
         df_all_guilds = pd.DataFrame()
         df = DataConnector.read_data('SELECT * FROM {}.guilds'.format(SCHEMA_NAME))
         df_all_guilds = pd.concat([df_all_guilds,df])
+        lst_db_guilds = df_all_guilds['guild_id'].tolist()
+
+        # Compare the guilds the bot is currently in versus what is stored in
+        # the database
         for guild in guilds:
-            if str(guild.id) not in df_all_guilds['guild_id'].tolist():
-                dict_guild = {'guild_id':str(guild.id), 'channel_id':'','message_id':''}
+            guild_id = str(guild.id)
+            if guild_id not in lst_db_guilds:
+                # If a guild does not exist in the database, create a new row
+                dict_guild = {'guild_id': guild_id, 'channel_id': '','message_id': ''}
                 df_guild = pd.DataFrame([dict_guild])
                 df_all_guilds = pd.concat([df_all_guilds,df_guild])
+                guild_list_changed = True
+            else:
+                # Else, remove that guild from the guild list
+                lst_db_guilds.remove(guild_id)
 
-        DataConnector.run_query("TRUNCATE TABLE {}.guilds".format(SCHEMA_NAME))
-        DataConnector.write_data(df_all_guilds, SCHEMA_NAME,'guilds', 'append')
-        
+        # If the list of guilds in the database is not 0, then the bot was
+        # removed from a guild while the bot was offline
+        if len(lst_db_guilds) != 0:
+            guild_list_changed = True
+            for guild in lst_db_guilds:
+                # Remove the guild from the df
+                df_all_guilds = df_all_guilds[df_all_guilds != guild]
+            # Current implentation inserst NaN values into the df in place of
+            # the deleted rows
+            df_all_guilds.dropna(inplace=True)
+
+        # Update the database if a new guild was added or if a guild was removed
+        # while the bot was offline
+        if guild_list_changed == True:
+            # Truncate the table and insert the new guild list
+            DataConnector.run_query("TRUNCATE TABLE {}.guilds".format(SCHEMA_NAME))
+            DataConnector.write_data(df_all_guilds, SCHEMA_NAME, 'guilds', 'append')
+
         print("Bot is ready!")
 
     @classmethod
@@ -88,7 +115,6 @@ class DataProcessor():
         Arguments:
         - payload   RawReactionActionEvent  a Discord object
         '''
-    #TODO is channel needed?
         guild_id = str(payload.guild_id)
     
         # Run query to get the channel and message IDs for the requesting guild
@@ -126,7 +152,6 @@ class DataProcessor():
         - client    Client                  a Discord class
         - payload   RawReactionActionEvent  a Discord class
         '''
-    #TODO is channel needed?
         guild_id = str(payload.guild_id)
     
         # Run query to get the channel and message IDs for the requesting guild
@@ -195,10 +220,12 @@ class DataProcessor():
 
         # Print out the specific day or all days
         # - cmd[1] optional day
-        # Run query to get the user_id + day from the days table for the requesting guild
+        # Run query to get the user_id + day from the days table for the
+        # requesting guild, ordered by the timestamp (ascending)
         df = DataConnector.read_data(("""SELECT day, user_id
                                          FROM {0}.days
-                                         WHERE guild_id = '{1}' ORDER BY insert_ts ASC
+                                         WHERE guild_id = '{1}'
+                                         ORDER BY insert_ts ASC
                                       """).format(SCHEMA_NAME, guild_id))
 
         # Print the specific day if exists or all days
@@ -297,8 +324,6 @@ class DataProcessor():
         #   > item, items
         #   > es
         # - cmd[2...] name of what to search
-
-
         dict_res = {}
 
         if option == 'item' or option == 'items':
