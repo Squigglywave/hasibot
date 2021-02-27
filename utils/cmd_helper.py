@@ -12,6 +12,7 @@ from config import SCHEMA_NAME, lst_scols, DB_URL, time_zone, PATH
 from .momento import get_echo_30, get_boosted_echo_30
 from .helpers import grab_day, day_print
 from .connector import DataConnector
+from .erg import roll_erg
 
 
 class DataProcessor():
@@ -254,19 +255,25 @@ class DataProcessor():
         return str_final
 
     @classmethod
-    def _erg(cls, guild_id, user_id):
+    def _erg(cls, user_id):
         df = DataConnector.read_data("SELECT * FROM {}.erg WHERE user_id='{}'".format(SCHEMA_NAME,user_id)) 
         if df.shape[0] == 0:
             success = roll_erg(0)
             if success:
-                DataConnector.run_query("INSERT INTO {}.erg VALUES ({},1,1,0,1)".format(SCHEMA_NAME,user_id))
+                DataConnector.run_query("INSERT INTO {}.erg VALUES ('{}',1,1,0,1)".format(SCHEMA_NAME,user_id))
             else:
-                DataConnector.run_query("INSERT INTO {}.erg VALUES ({},0,1,0,1)".format(SCHEMA_NAME,user_id))
+                DataConnector.run_query("INSERT INTO {}.erg VALUES ('{}',0,1,0,1)".format(SCHEMA_NAME,user_id))
         else:
             success = roll_erg(df['erg_rank'][0])
             if success:
                 if df['erg_rank'][0] < 8:
-                    query = "UPDATE {}.erg SET erg_rank = erg_rank + 1,current_count = 0, total_count = total_count + 1 WHERE user_id={}".format(SCHEMA_NAME,user_id)
+                    DataConnector.run_query("UPDATE {}.erg SET erg_rank = erg_rank + 1,current_count = 0, total_count = total_count + 1 WHERE user_id='{}'".format(SCHEMA_NAME,user_id))
+                else:
+                    DataConnector.run_query("UPDATE {}.erg SET erg_rank = 0,current_count = 0, total_erg_weps = total_erg_weps + 1, total_count = total_count + 1 WHERE user_id='{}'".format(SCHEMA_NAME,user_id))
+ 
+            else:
+                DataConnector.run_query("UPDATE {}.erg SET current_count = current_count + 1, total_count = total_count + 1 WHERE user_id='{}'".format(SCHEMA_NAME,user_id))
+        return df,success
                            
         
 

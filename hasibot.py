@@ -1,6 +1,7 @@
 # Standard Library
 import io
 import datetime
+import random
 
 # Third Party Library
 import requests
@@ -9,7 +10,7 @@ import pandas as pd
 
 # Application Specific Library
 from utils import DataProcessor
-from config import TOKEN
+from config import TOKEN, PATH, erg_rates
 
 # Intents used to track guild member lists
 intents = discord.Intents.all()
@@ -130,8 +131,48 @@ async def on_message(message):
         str_final = DataProcessor._on_message_print_info(client, gid)
         await message.channel.send(str_final)
     elif cmd[0] == '~.erg':
-        DataProcessor._erg(user_message_id)
-        
+        df_erg,success = DataProcessor._erg(user_message_id)
+        current_rank = df_erg['erg_rank'][0]
+        df_erg['erg_rank'] = df_erg['erg_rank'] *5+5
+        if success:
+            df_erg['erg_rank'] = df_erg['erg_rank'] + 5
+            df_erg['current_count'] = df_erg['current_count'] + 1
+            #str_final = "```\nSuccess Rate: {}%\n# of Weapons: {}\nErg Rank: {}\n# of Attempts: {}\nTotal Attempts: {}\n```".format(int(erg_rates[current_rank]*100),df_erg['total_erg_weps'][0],df_erg['erg_rank'][0],df_erg['current_count'][0],df_erg['total_count'][0])
+            str_final = ("```\nSuccess Rate: {:.2f}%\n" + \
+                         "# of Weapons: {}\n"    + \
+                         "Erg Rank: {}\n"        + \
+                         "# of Attempts: {}\n"   + \
+                         "Total Attempts: {}\n```").format(erg_rates[current_rank]*100,
+                                                        df_erg['total_erg_weps'][0],
+                                                        df_erg['erg_rank'][0],
+                                                        df_erg['current_count'][0],
+                                                        df_erg['total_count'][0])
+            #str_final = "```\n" + str(df_erg.transpose()) + "\n```"
+            embed = discord.Embed(title=message.author.name, description=str_final, color=0x00ff00)
+            file_1 = discord.File(PATH + "data/ergsuccess.png", filename="image.png")
+            print(datetime.datetime.now())
+            embed.set_image(url="attachment://image.png")
+            await message.channel.send(embed=embed, file=file_1)
+        else:
+            df_erg['current_count'] = df_erg['current_count'] + 1
+            #str_final = "```\nSuccess Rate: {}%\n# of Weapons: {}\nErg Rank: {}\n# of Attempts: {}\nTotal Attempts: {}\n```".format(int(erg_rates[current_rank]*100),df_erg['total_erg_weps'][0],df_erg['erg_rank'][0],df_erg['current_count'][0],df_erg['total_count'][0])
+            str_final = ("```\nSuccess Rate: {:.2f}%\n" + \
+                         "# of Weapons: {}\n"    + \
+                         "Erg Rank: {}\n"        + \
+                         "# of Attempts: {}\n"   + \
+                         "Total Attempts: {}\n```").format(erg_rates[current_rank]*100,
+                                                        df_erg['total_erg_weps'][0],
+                                                        df_erg['erg_rank'][0],
+                                                        df_erg['current_count'][0],
+                                                        df_erg['total_count'][0])
+            embed = discord.Embed(title=message.author.name, description=str_final, color=0xcb4154)
+            roll = random.random()
+            if roll < 0.10:
+                file_1 = discord.File(PATH + "data/hahafrog.png", filename="image.png")
+            else:
+                file_1 = discord.File(PATH + "data/ergfail.png", filename="image.png")
+            embed.set_image(url="attachment://image.png")
+            await message.channel.send(embed=embed, file=file_1)
     elif cmd[0] == '~.roll_echo':
         str_final = DataProcessor._on_message_roll_echo()
 
@@ -166,7 +207,6 @@ async def on_message(message):
         elif dict_res['status'] == 2:
             await message.channel.send(content=dict_res['link'])
             await message.channel.send(content=dict_res['str_final'])
-
 
 # Run the bot
 client.run(TOKEN)
