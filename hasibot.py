@@ -85,7 +85,10 @@ async def on_message(message):
 
     # Quick optimization as this bot is watching all messages; early return
     # if the message does not start with a '~' character
-    if message.content[0] != '~':
+    try:
+        if message.content[0] != '~':
+            return
+    except:
         return
 
     # Set command message lowercase and split by whitespace

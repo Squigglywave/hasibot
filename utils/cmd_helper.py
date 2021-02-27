@@ -123,7 +123,8 @@ class DataProcessor():
           the queue for the unreacted day
     
         Arguments:
-        - payload   RawReactionActionEvent  a Discord object
+        - client    Client                  a Discord class
+        - payload   RawReactionActionEvent  a Discord class
         '''
     #TODO is channel needed?
         guild_id = str(payload.guild_id)
@@ -149,8 +150,9 @@ class DataProcessor():
             # Run another query to delete a user if they unreacted
             DataConnector.run_query(("""DELETE FROM {0}.days
                                         WHERE user_id = '{1}' AND 
-                                              day = '{2}'
-                                     """).format(SCHEMA_NAME, user, day))
+                                              day = '{2}' AND
+                                              guild_id = '{3}'
+                                     """).format(SCHEMA_NAME, user, day, guild_id))
 
     @classmethod
     def _on_message_watch_channel(cls, guild_id, channel_id):
