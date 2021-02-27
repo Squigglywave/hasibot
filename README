@@ -16,20 +16,13 @@ Usage:
     fri
     sat
     default (no argument) - displays all days
- 
- ~.update_ut
-  Updates the user tables list (creates a map of Nickname keys to User IDs).
   
-~.load <day> 'nick1','nick2',...
-  Loads the desired day with the list of given nicknames (not case sensitive).
-  
-~.load_id <day> 1,2,3,...
-  Loads the desired day with the list of given list of user IDs.
-  
-~.print_info <gid> # <day>
+~.print_info <gid> #
   Prints guild IDs, channel IDs, message IDs, and body counts for all guilds.
   If the gid flag is supplied, then only prints the above information for that specific guild.
-  If a day is also supplied, then the user ID list for that day for the desired guild is printed.
 
-~.search <NAME>
-  Searches mabibase.com for <NAME> and returns the first result.
+~.roll_echo
+  Rolls a g30 echostone with adv rates. Prints number of attempts and final echostone stat.
+  
+~.roll_boosted_echo
+  Rolls a g30 echostone with adv rates + 10% bonus. Prints number of attempts and final echostone stat.
