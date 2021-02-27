@@ -54,6 +54,7 @@ class DataConnector():
         except Exception as ex:
             print(ex)
             return None
+
     @classmethod
     def write_data(cls, df, schema, table, if_exists='append'):
         try:
@@ -62,5 +63,3 @@ class DataConnector():
         except Exception as ex:
             print(ex)
             return 0
-    
-        

@@ -113,6 +113,7 @@ class DataProcessor():
           queue for the reacted day
 
         Arguments:
+        - client    Client                  a Discord class
         - payload   RawReactionActionEvent  a Discord object
         '''
         guild_id = str(payload.guild_id)
