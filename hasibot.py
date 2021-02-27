@@ -158,7 +158,6 @@ async def on_message(message):
             #str_final = "```\n" + str(df_erg.transpose()) + "\n```"
             embed = discord.Embed(title=message.author.name, description=str_final, color=0x00ff00)
             file_1 = discord.File(PATH + "data/ergsuccess.png", filename="image.png")
-            print(datetime.datetime.now())
             embed.set_image(url="attachment://image.png")
             await message.channel.send(embed=embed, file=file_1)
         else:
