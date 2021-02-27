@@ -132,6 +132,14 @@ async def on_message(message):
         await message.channel.send(str_final)
     elif cmd[0] == '~.erg':
         df_erg,success = DataProcessor._erg(user_message_id)
+        if df_erg.shape[0] == 0:
+            dict_erg = {
+                        'total_erg_weps':0,
+                        'erg_rank':0,
+                        'current_count':0,
+                        'total_count':0
+                       }
+            df_erg = pd.DataFrame([dict_erg])
         current_rank = df_erg['erg_rank'][0]
         df_erg['erg_rank'] = df_erg['erg_rank'] *5+5
         if success:
