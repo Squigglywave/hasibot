@@ -198,7 +198,7 @@ class DataProcessor():
         # Run query to get the user_id + day from the days table for the requesting guild
         df = DataConnector.read_data(("""SELECT day, user_id
                                          FROM {0}.days
-                                         WHERE guild_id = '{1}'
+                                         WHERE guild_id = '{1}' ORDER BY insert_ts ASC
                                       """).format(SCHEMA_NAME, guild_id))
 
         # Print the specific day if exists or all days
