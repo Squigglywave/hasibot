@@ -16,7 +16,7 @@ from .erg import roll_erg
 
 
 class DataProcessor():
-    day_emotes = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+    day_emotes = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'yes']
 
     @classmethod
     def _on_ready(cls, guilds):
