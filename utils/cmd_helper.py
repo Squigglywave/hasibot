@@ -380,11 +380,6 @@ class DataProcessor():
                         DataConnector.run_query("UPDATE {}.bdays SET month='{}' WHERE guild_id='{}' AND user_id='{}'".format(SCHEMA_NAME,str(bday_month),guild_id,user_id))
                         DataConnector.run_query("UPDATE {}.bdays SET day='{}' WHERE guild_id='{}' AND user_id='{}'".format(SCHEMA_NAME,str(bday_day),guild_id,user_id))
                         str_final = "User {} updated to: Month: {}, Day: {}".format(name, bday_month, bday_day)
-                    #if str(user_id) in df_existing['user_id'].tolist():
-                    #    str_final = "User already registered: {}, Month: {}, Day: {}".format(name, df_existing['month'].values[0], df_existing['day'].values[0])
-                    #else:
-                    #    DataConnector.write_data(df_bday, SCHEMA_NAME, 'bdays', 'append')
-                    #    str_final = "User {} registered: month: {}, day: {}".format(name, bday_month, bday_day)
                 else:
                     DataConnector.write_data(df_bday, SCHEMA_NAME, 'bdays', 'append')
                     str_final = "User {} registered: month: {}, day: {}".format(name, bday_month, bday_day)
