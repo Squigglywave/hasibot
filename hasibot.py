@@ -7,6 +7,7 @@ import random
 import requests
 import discord
 import pandas as pd
+import aiocron
 
 # Application Specific Library
 from utils import DataProcessor
@@ -97,7 +98,46 @@ async def on_message(message):
     cmd = message.content.lower().split()
 
     # Check input
-    if cmd[0] == '~.watch_channel':
+    if cmd[0] == '~.help':
+        if len(cmd) > 1:
+            desired_info = cmd[1]
+            # make logic to give help for each command here...
+            
+        str_final = """
+```
+~.watch_channel <CHANNEL_ID>
+  Used to select which channel to watch. Must be set to something.
+
+~.watch_message <MESSAGE_ID>
+  Used to select which message to watch. Must be set to something.
+
+~.setbirthday <MM/DD>
+  Used to set a birthday for a person. Hasibot will automatically send a birthday message on that day!
+
+~.hasi <day>
+  Displays the queue for the requested day. Accepted values:
+    sun
+    mon
+    tue
+    wed
+    thu
+    fri
+    sat
+    default (no argument) - displays all days
+  
+~.print_info <gid> #
+  Prints guild IDs, channel IDs, message IDs, and body counts for all guilds.
+  If the gid flag is supplied, then only prints the above information for that specific guild.
+
+~.roll_echo
+  Rolls a g30 echostone with adv rates. Prints number of attempts and final echostone stat.
+  
+~.roll_boosted_echo
+  Rolls a g30 echostone with adv rates + 10% bonus. Prints number of attempts and final echostone stat.
+```
+        """
+        await message.channel.send(str_final)
+    elif cmd[0] == '~.watch_channel':
         # Check for channel ID, return if no second argument
         if len(cmd) < 2:
             return
@@ -130,6 +170,35 @@ async def on_message(message):
 
         str_final = DataProcessor._on_message_print_info(client, gid)
         await message.channel.send(str_final)
+    elif cmd[0] == '~.set_bday':
+        if len(cmd) > 1:
+            if len(cmd) > 2:
+                str_final = DataProcessor._set_birthday(client, guild_id, cmd[1], cmd[2])
+            else:
+                str_final = "Not enough elements passed, please pass in month and day in this format: Name MM/DD"
+        else:
+            str_final = "No element passed, please pass in month and day in this format: Name MM/DD"
+        await message.channel.send(str_final)
+    elif cmd[0] == '~.unset_bday':
+        if len(cmd) > 1:
+            str_final = DataProcessor._unset_birthday(client, guild_id, cmd[1])
+        else:
+            str_final = "Please provide name of person to unset"
+            
+        await message.channel.send(str_final)
+    elif cmd[0] == '~.print_bdays':
+        str_final = DataProcessor._print_bdays(client, guild_id)
+
+        await message.channel.send(str_final)
+    elif cmd[0] == '~.set_bday_channel':
+        if len(cmd) > 1:
+            channel_id = str(cmd[1])
+            str_final = DataProcessor._set_bday_channel(client, guild_id, channel_id)
+        else:
+            str_final = "Please provide channel ID for bot to send messages"
+            
+        await message.channel.send(str_final)
+    
     elif cmd[0] == '~.erg':
         df_erg,success = DataProcessor._erg(user_message_id)
         if df_erg.shape[0] == 0:
@@ -214,6 +283,14 @@ async def on_message(message):
         elif dict_res['status'] == 2:
             await message.channel.send(content=dict_res['link'])
             await message.channel.send(content=dict_res['str_final'])
+    elif cmd[0] == '~.sendbday':
+        await DataProcessor._send_bday(client)
+
+
+# Scheduled task for birthdays!
+@aiocron.crontab('0 0 * * *')
+async def cronjob1():
+    await DataProcessor._send_bday(client)
 
 # Run the bot
 client.run(TOKEN)

@@ -1,5 +1,6 @@
 # Standard Library
 import datetime
+import traceback
 
 # Third Party Library
 import pandas as pd
@@ -10,7 +11,7 @@ import xml.etree.ElementTree as ET
 # Application Specific Library
 from config import SCHEMA_NAME, lst_scols, DB_URL, time_zone, PATH
 from .momento import get_echo_30, get_boosted_echo_30
-from .helpers import grab_day, day_print
+from .helpers import grab_day, day_print, get_user, get_user_id
 from .connector import DataConnector
 from .erg import roll_erg
 
@@ -324,8 +325,114 @@ class DataProcessor():
                                            WHERE user_id='{1}'
                                         """.format(SCHEMA_NAME, user_id))
         return df,success
-                           
+             
+    @classmethod
+    def _print_bdays(cls, client, guild_id):
+        df_existing = DataConnector.read_data("SELECT * FROM {}.bdays WHERE guild_id='{}'".format(SCHEMA_NAME,guild_id))
+        df_existing['user'] = df_existing['user_id'].apply(lambda x: get_user(client, guild_id, x))
+             
+        return "```\n" + str(df_existing[['user','month','day']]) + "\n```"
         
+    @classmethod
+    def _set_bday_channel(cls, client, guild_id, channel_id):
+        dict_data = {"guild_id": str(guild_id), "channel_id": str(channel_id)}
+        
+        df_channel = pd.DataFrame([dict_data])
+        
+        df_check = DataConnector.read_data("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = '{}' AND table_name = 'bday_channels');".format(SCHEMA_NAME))
+        if df_check['exists'].values[0]:
+            df_existing = DataConnector.read_data("SELECT * FROM {}.bday_channels WHERE guild_id='{}' AND channel_id='{}'".format(SCHEMA_NAME,guild_id, str(channel_id)))
+            if str(channel_id) in df_existing['channel_id'].tolist():
+                str_final = "Channel already registered: {}".format(str(channel_id))
+            else:
+                DataConnector.write_data(df_channel, SCHEMA_NAME, 'bday_channels', 'append')
+                str_final = "Channel {} registered".format(str(channel_id))
+        else:
+            DataConnector.write_data(df_channel, SCHEMA_NAME, 'bday_channels', 'append')
+            str_final = "Channel {} registered".format(str(channel_id))
+        return str_final                
+        
+    @classmethod
+    def _set_birthday(cls, client, guild_id, username, str_bday):
+        try:
+            user_id, bool_found = get_user_id(client, guild_id, username)
+            if bool_found:
+                bday_month = str_bday.split("/")[0]
+                bday_day = str_bday.split("/")[1]
+                str_final = bday_month + bday_day
+                
+                dict_data = {"guild_id": str(guild_id), "user_id": str(user_id), "month": str(bday_month), "day": str(bday_day)}
+                
+                df_bday = pd.DataFrame([dict_data])
+                
+                name = get_user(client, guild_id, user_id)
+                
+                df_check = DataConnector.read_data("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = '{}' AND table_name = 'bdays');".format(SCHEMA_NAME))
+                if df_check['exists'].values[0]:
+                    df_existing = DataConnector.read_data("SELECT * FROM {}.bdays WHERE guild_id='{}' AND user_id='{}'".format(SCHEMA_NAME,guild_id, user_id))
+                    if str(user_id) in df_existing['user_id'].tolist():
+                        str_final = "User already registered: {}, Month: {}, Day: {}".format(name, df_existing['month'].values[0], df_existing['day'].values[0])
+                    else:
+                        DataConnector.write_data(df_bday, SCHEMA_NAME, 'bdays', 'append')
+                        str_final = "User {} registered: month: {}, day: {}".format(name, bday_month, bday_day)
+                else:
+                    DataConnector.write_data(df_bday, SCHEMA_NAME, 'bdays', 'append')
+                    str_final = "User {} registered: month: {}, day: {}".format(name, bday_month, bday_day)
+            else:
+                str_final = "Name provided is not found"
+        except Exception as ex:
+            str_final = "Failed with error: " + traceback.format_exc()
+        
+        return str_final
+
+    @classmethod
+    def _unset_birthday(cls, client, guild_id, username):
+        try:
+            user_id, bool_found = get_user_id(client, guild_id, username)
+            if bool_found:
+                DataConnector.run_query("DELETE FROM {}.bdays WHERE guild_id='{}' AND user_id='{}'".format(SCHEMA_NAME,guild_id,user_id))
+                str_final = "User deleted"
+            else:
+                str_final = "User not registered"
+        except Exception as ex:
+            str_final = "Failed with error" + traceback.format_exc()
+            
+        return str_final
+
+    @classmethod
+    async def _send_bday(cls, client):
+        today = datetime.datetime.today()
+        month = today.month
+        day = today.day
+        parse_date = [1,2,3,4,5,6,7,8,9]
+        
+        if day in parse_date:
+            day = '0' + str(day)
+        else:
+            day = str(day)
+            
+        if month in parse_date:
+            month = '0' + str(month)
+        else:
+            month = str(month)
+        
+        df_guilds = DataConnector.read_data("SELECT DISTINCT guild_id FROM {}.bdays".format(SCHEMA_NAME))
+        for guild in df_guilds['guild_id'].tolist():
+            obj_guild = client.get_guild(int(guild))
+            df_channel_id = DataConnector.read_data("SELECT channel_id FROM {}.bday_channels WHERE guild_id='{}'".format(SCHEMA_NAME, int(guild)))
+            channel_id = df_channel_id['channel_id'].values[0]
+            channel = obj_guild.get_channel(int(channel_id))
+            
+            # Get birthdays
+            df_birthdays = DataConnector.read_data("SELECT * FROM {}.bdays WHERE guild_id='{}' AND month='{}' AND day='{}'".format(SCHEMA_NAME, int(guild), month, day))
+            
+            if df_birthdays.shape[0] != 0:
+                df_birthdays['user'] = df_birthdays['user_id'].apply(lambda x: get_user(client, int(guild), x))
+                for person in df_birthdays['user'].tolist():
+                    str_final = "Happy birthday {}!".format(person)
+                    await channel.send(str(datetime.datetime.now()))
+                    await channel.send(str_final)
+            
 
     @classmethod
     def _on_message_roll_echo(cls):
