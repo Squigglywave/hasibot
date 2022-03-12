@@ -21,6 +21,48 @@ def day_print(client, guild_id, lst_users):
 
     return ret_str
 
+def get_user(client, guild_id, user_id):
+    '''
+    Returns user's name given a user_id
+
+    Arguments:
+    - guild_id   string  the ID of the guild to fetch the guild members from
+    - user_id    string  user_id
+
+    Returns:
+    - user       string  user's name
+    '''
+    user = client.get_guild(int(guild_id)).get_member(int(user_id))
+    if user.nick is not None:
+        name = user.nick
+    else:
+        name = user.name
+            
+    return name
+
+def get_user_id(client, guild_id, username):
+    user_id = ''
+    lst_members = client.get_guild(int(guild_id)).members
+    
+    bool_found = True
+    dict_ids = {}
+    dict_nicks = {}
+    for member in lst_members:
+        if member.name not in dict_ids.keys() and member.name is not None:
+            dict_ids[str(member.name).lower()] = member.id
+        if member.nick not in dict_nicks.keys() and member.name is not None:
+            dict_nicks[str(member.nick).lower()] = member.id
+    
+    if username in dict_ids.keys():
+        user_id = dict_ids[username]  
+    elif username in dict_nicks.keys():
+        user_id = dict_nicks[username]
+    else:
+        bool_found = False
+        user_id = "User id not found"    
+    
+    return user_id, bool_found
+
 def grab_day(df, day):
     '''
     Generates a list of user IDs based on the given day.
