@@ -341,12 +341,14 @@ class DataProcessor():
         
         df_check = DataConnector.read_data("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = '{}' AND table_name = 'bday_channels');".format(SCHEMA_NAME))
         if df_check['exists'].values[0]:
-            df_existing = DataConnector.read_data("SELECT * FROM {}.bday_channels WHERE guild_id='{}' AND channel_id='{}'".format(SCHEMA_NAME,guild_id, str(channel_id)))
-            if str(channel_id) in df_existing['channel_id'].tolist():
-                str_final = "Channel already registered: {}".format(str(channel_id))
-            else:
+            df_existing = DataConnector.read_data("SELECT * FROM {}.bday_channels WHERE guild_id='{}'".format(SCHEMA_NAME,guild_id, str(channel_id)))
+        
+            if df_existing.shape[0] == 0:
                 DataConnector.write_data(df_channel, SCHEMA_NAME, 'bday_channels', 'append')
                 str_final = "Channel {} registered".format(str(channel_id))
+            else:
+                DataConnector.run_query("UPDATE {}.bday_channels SET channel_id='{}' WHERE guild_id='{}'".format(SCHEMA_NAME,str(channel_id),guild_id, str(channel_id)))
+                str_final = "Channel updated to {}".format(str(channel_id))
         else:
             DataConnector.write_data(df_channel, SCHEMA_NAME, 'bday_channels', 'append')
             str_final = "Channel {} registered".format(str(channel_id))
@@ -370,11 +372,19 @@ class DataProcessor():
                 df_check = DataConnector.read_data("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = '{}' AND table_name = 'bdays');".format(SCHEMA_NAME))
                 if df_check['exists'].values[0]:
                     df_existing = DataConnector.read_data("SELECT * FROM {}.bdays WHERE guild_id='{}' AND user_id='{}'".format(SCHEMA_NAME,guild_id, user_id))
-                    if str(user_id) in df_existing['user_id'].tolist():
-                        str_final = "User already registered: {}, Month: {}, Day: {}".format(name, df_existing['month'].values[0], df_existing['day'].values[0])
-                    else:
+                    
+                    if df_existing.shape[0] == 0:
                         DataConnector.write_data(df_bday, SCHEMA_NAME, 'bdays', 'append')
                         str_final = "User {} registered: month: {}, day: {}".format(name, bday_month, bday_day)
+                    else:
+                        DataConnector.run_query("UPDATE {}.bdays SET month='{}' WHERE guild_id='{}' AND user_id='{}'".format(SCHEMA_NAME,str(bday_month),guild_id,user_id))
+                        DataConnector.run_query("UPDATE {}.bdays SET day='{}' WHERE guild_id='{}' AND user_id='{}'".format(SCHEMA_NAME,str(bday_day),guild_id,user_id))
+                        str_final = "User {} updated to: Month: {}, Day: {}".format(name, bday_month, bday_day)
+                    #if str(user_id) in df_existing['user_id'].tolist():
+                    #    str_final = "User already registered: {}, Month: {}, Day: {}".format(name, df_existing['month'].values[0], df_existing['day'].values[0])
+                    #else:
+                    #    DataConnector.write_data(df_bday, SCHEMA_NAME, 'bdays', 'append')
+                    #    str_final = "User {} registered: month: {}, day: {}".format(name, bday_month, bday_day)
                 else:
                     DataConnector.write_data(df_bday, SCHEMA_NAME, 'bdays', 'append')
                     str_final = "User {} registered: month: {}, day: {}".format(name, bday_month, bday_day)
