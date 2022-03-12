@@ -359,9 +359,16 @@ class DataProcessor():
         try:
             user_id, bool_found = get_user_id(client, guild_id, username)
             if bool_found:
-                bday_month = str_bday.split("/")[0]
-                bday_day = str_bday.split("/")[1]
-                str_final = bday_month + bday_day
+                validation_month = ['01','02','03','04','05','06','07','08','09','10','11','12']
+                validation_day = ['01','02','03','04','05','06','07','08','09','10','11','12','13','14','15','16','17','18','19','20','21','22','23','24','25','26','27','28','29','30','31']
+                try:
+                    bday_month = str_bday.split("/")[0]
+                    bday_day = str_bday.split("/")[1]
+                    str_final = bday_month + bday_day
+                    if (bday_month not in validation_month) or (bday_day not in validation_day):
+                        return "Invalid birthday provided, please provide a valid birthday"
+                except Exception as ex:
+                    return "Birthday format incorrect, please provide the following: MM/DD (For example: 01/01)"
                 
                 dict_data = {"guild_id": str(guild_id), "user_id": str(user_id), "month": str(bday_month), "day": str(bday_day)}
                 
@@ -425,17 +432,18 @@ class DataProcessor():
         for guild in df_guilds['guild_id'].tolist():
             obj_guild = client.get_guild(int(guild))
             df_channel_id = DataConnector.read_data("SELECT channel_id FROM {}.bday_channels WHERE guild_id='{}'".format(SCHEMA_NAME, int(guild)))
-            channel_id = df_channel_id['channel_id'].values[0]
-            channel = obj_guild.get_channel(int(channel_id))
-            
-            # Get birthdays
-            df_birthdays = DataConnector.read_data("SELECT * FROM {}.bdays WHERE guild_id='{}' AND month='{}' AND day='{}'".format(SCHEMA_NAME, int(guild), month, day))
-            
-            if df_birthdays.shape[0] != 0:
-                df_birthdays['user'] = df_birthdays['user_id'].apply(lambda x: get_user(client, int(guild), x))
-                for person in df_birthdays['user'].tolist():
-                    str_final = "Happy birthday {}!".format(person)
-                    await channel.send(str_final)
+            if df_channel_id.shape[0] != 0:
+                channel_id = df_channel_id['channel_id'].values[0]
+                channel = obj_guild.get_channel(int(channel_id))
+                
+                # Get birthdays
+                df_birthdays = DataConnector.read_data("SELECT * FROM {}.bdays WHERE guild_id='{}' AND month='{}' AND day='{}'".format(SCHEMA_NAME, int(guild), month, day))
+                
+                if df_birthdays.shape[0] != 0:
+                    df_birthdays['user'] = df_birthdays['user_id'].apply(lambda x: get_user(client, int(guild), x))
+                    for person in df_birthdays['user'].tolist():
+                        str_final = "Happy birthday {}!".format(person)
+                        await channel.send(str_final)
             
 
     @classmethod

@@ -111,8 +111,14 @@ async def on_message(message):
 ~.watch_message <MESSAGE_ID>
   Used to select which message to watch. Must be set to something.
 
-~.setbirthday <MM/DD>
-  Used to set a birthday for a person. Hasibot will automatically send a birthday message on that day!
+~.set_bday_channel <CHANNEL_ID>
+  Used to select a channel for hasibot to give birthday announcements. A channel must be set for hasibot to start monitoring birthdays.
+
+~.set_bday <MM/DD>
+  Used to set a birthday for a person. Hasibot will automatically send a birthday message on that day.
+
+~.unset_bday <name>
+  Used to unset a birthday. Hasibot will no longer send a birthday after this command.
 
 ~.hasi <day>
   Displays the queue for the requested day. Accepted values:
@@ -124,10 +130,6 @@ async def on_message(message):
     fri
     sat
     default (no argument) - displays all days
-  
-~.print_info <gid> #
-  Prints guild IDs, channel IDs, message IDs, and body counts for all guilds.
-  If the gid flag is supplied, then only prints the above information for that specific guild.
 
 ~.roll_echo
   Rolls a g30 echostone with adv rates. Prints number of attempts and final echostone stat.
