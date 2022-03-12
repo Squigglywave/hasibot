@@ -430,7 +430,6 @@ class DataProcessor():
                 df_birthdays['user'] = df_birthdays['user_id'].apply(lambda x: get_user(client, int(guild), x))
                 for person in df_birthdays['user'].tolist():
                     str_final = "Happy birthday {}!".format(person)
-                    await channel.send(str(datetime.datetime.now()))
                     await channel.send(str_final)
             
 
