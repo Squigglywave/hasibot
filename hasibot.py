@@ -287,6 +287,8 @@ async def on_message(message):
             await message.channel.send(content=dict_res['str_final'])
     elif cmd[0] == '~.sendbday':
         await DataProcessor._send_bday(client)
+    elif cmd[0] == '~.time':
+        await message.channel.send(str(datetime.datetime.now()))
 
 
 # Scheduled task for birthdays!
