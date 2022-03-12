@@ -175,7 +175,8 @@ async def on_message(message):
     elif cmd[0] == '~.set_bday':
         if len(cmd) > 1:
             if len(cmd) > 2:
-                str_final = DataProcessor._set_birthday(client, guild_id, cmd[1], cmd[2])
+                username = " ".join(cmd[1:-1])
+                str_final = DataProcessor._set_birthday(client, guild_id, username, cmd[-1])
             else:
                 str_final = "Not enough elements passed, please pass in month and day in this format: Name MM/DD"
         else:
