@@ -23,7 +23,7 @@ client = discord.Client(intents=intents)
 ###########
 # List of acceptable day emoji names; Discord server needs to name the emojis in
 # this exact format
-day_emotes = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+day_emotes = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'yes']
 
 ###################
 # Discord Methods #

@@ -17,7 +17,7 @@ from .erg import roll_erg
 
 
 class DataProcessor():
-    day_emotes = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+    day_emotes = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'yes']
 
     @classmethod
     def _on_ready(cls, guilds):
@@ -285,23 +285,45 @@ class DataProcessor():
 
     @classmethod
     def _erg(cls, user_id):
-        df = DataConnector.read_data("SELECT * FROM {}.erg WHERE user_id='{}'".format(SCHEMA_NAME,user_id)) 
+        df = DataConnector.read_data("""SELECT *
+                                        FROM {0}.erg
+                                        WHERE user_id='{1}'
+                                     """.format(SCHEMA_NAME, user_id)) 
         if df.shape[0] == 0:
             success = roll_erg(0)
             if success:
-                DataConnector.run_query("INSERT INTO {}.erg VALUES ('{}',1,0,0,1)".format(SCHEMA_NAME,user_id))
+                DataConnector.run_query("""INSERT INTO {0}.erg
+                                           VALUES ('{1}',1,0,0,1)
+                                        """.format(SCHEMA_NAME, user_id))
             else:
-                DataConnector.run_query("INSERT INTO {}.erg VALUES ('{}',0,1,0,1)".format(SCHEMA_NAME,user_id))
+                DataConnector.run_query("""INSERT INTO {0}.erg
+                                           VALUES ('{1}',0,1,0,1)
+                                        """.format(SCHEMA_NAME, user_id))
         else:
             success = roll_erg(df['erg_rank'][0])
             if success:
                 if df['erg_rank'][0] < 8:
-                    DataConnector.run_query("UPDATE {}.erg SET erg_rank = erg_rank + 1,current_count = 0, total_count = total_count + 1 WHERE user_id='{}'".format(SCHEMA_NAME,user_id))
+                    DataConnector.run_query("""UPDATE {0}.erg
+                                               SET erg_rank = erg_rank + 1,
+                                                   current_count = 0,
+                                                   total_count = total_count + 1
+                                               WHERE user_id='{1}'
+                                            """.format(SCHEMA_NAME, user_id))
                 else:
-                    DataConnector.run_query("UPDATE {}.erg SET erg_rank = 0,current_count = 0, total_erg_weps = total_erg_weps + 1, total_count = 0 WHERE user_id='{}'".format(SCHEMA_NAME,user_id))
+                    DataConnector.run_query("""UPDATE {0}.erg
+                                               SET erg_rank = 0,
+                                                   current_count = 0,
+                                                   total_erg_weps = total_erg_weps + 1,
+                                                   total_count = 0
+                                               WHERE user_id='{1}'
+                                           """.format(SCHEMA_NAME, user_id))
  
             else:
-                DataConnector.run_query("UPDATE {}.erg SET current_count = current_count + 1, total_count = total_count + 1 WHERE user_id='{}'".format(SCHEMA_NAME,user_id))
+                DataConnector.run_query("""UPDATE {0}.erg
+                                           SET current_count = current_count + 1,
+                                               total_count = total_count + 1
+                                           WHERE user_id='{1}'
+                                        """.format(SCHEMA_NAME, user_id))
         return df,success
              
     @classmethod
