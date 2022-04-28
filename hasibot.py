@@ -295,7 +295,11 @@ async def on_message(message):
             str_usage = "Please provide an expression like 1+1, spaces are NOT allowed."
             await message.channel.send(content=str_usage)
         else:
-            await message.channel.send(content=str(eval(cmd[1])))
+            try:
+                result = str(eval(cmd[1]))
+            except Exception as ex:
+                result = "Expression could not be evaluated, please enter proper expression"
+            await message.channel.send(content=result)
 
 # Scheduled task for birthdays!
 @aiocron.crontab('0 0 * * *')
