@@ -290,7 +290,12 @@ async def on_message(message):
         await DataProcessor._send_bday(client)
     elif cmd[0] == '~.time':
         await message.channel.send(str(datetime.datetime.now()))
-
+    elif cmd[0] == "~.eval":
+        if len(cmd) < 2:
+            str_usage = "Please provide an expression like 1+1, spaces are NOT allowed."
+            await message.channel.send(content=str_usage)
+        else:
+            await message.channel.send(content=str(eval(cmd[1])))
 
 # Scheduled task for birthdays!
 @aiocron.crontab('0 0 * * *')
