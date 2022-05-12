@@ -1,4 +1,5 @@
 discord.py==1.6.0
+discord.py[voice]
 python-dotenv==0.15.0
 requests==2.24.0
 pandas==1.1.3
@@ -7,3 +8,4 @@ psycopg2==2.8.6
 pytz==2020.1
 pytest==6.2.2
 aiocron==1.8
+youtube-dl==2021.12.17
