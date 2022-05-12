@@ -363,16 +363,30 @@ async def on_message(message):
         if len(cmd) > 1:
             input_url = original_cmd[1]
             
-        if latest_yt_url == "" and input_url == "":
-            result = DataProcessor._play_song(client,guild_id,input_url)
-            await message.channel.send(content=result)
-        else:
-            if input_url == "":
-                result = DataProcessor._play_song(client,guild_id,latest_yt_url)
-                await message.channel.send(content=result)
-            else:
-                result = DataProcessor._play_song(client,guild_id,input_url)
-                await message.channel.send(content=result)
+            if '.com' not in input_url:
+                search_keyword = "+".join(cmd[1:-1])
+                html = urllib.request.urlopen("https://www.youtube.com/results?search_query=" + search_keyword)
+                video_ids = re.findall(r"watch\?v=(\S{11})", html.read().decode())
+                if len(video_ids) == 0:
+                    await message.channel.send(content="No result found.")
+                else:
+                    input_url = "https://www.youtube.com/watch?v=" + video_ids[0]
+            
+            
+        result = DataProcessor._play_song(client,guild_id,input_url)
+        await message.channel.send(content=result)
+            
+            
+        #if latest_yt_url == "" and input_url == "":
+        #    result = DataProcessor._play_song(client,guild_id,input_url)
+        #    await message.channel.send(content=result)
+        #else:
+        #    if input_url == "":
+        #        result = DataProcessor._play_song(client,guild_id,latest_yt_url)
+        #        await message.channel.send(content=result)
+        #    else:
+        #        result = DataProcessor._play_song(client,guild_id,input_url)
+        #        await message.channel.send(content=result)
     elif cmd[0] == "~.stop":
         guild = client.get_guild(int(guild_id))
         voice = get(client.voice_clients, guild=guild)
@@ -404,28 +418,31 @@ async def on_message(message):
         voice.stop()
         await message.channel.send("Song skipped.")
 
-        guild = client.get_guild(int(guild_id))
-        voice = get(client.voice_clients, guild=guild)
+        #input_url = DataProcessor._get_next_song(guild_id)
+        #result = DataProcessor._play_song(client,guild_id,input_url)
+        #await message.channel.send(content=result)
+        #guild = client.get_guild(int(guild_id))
+        #voice = get(client.voice_clients, guild=guild)
         
-        YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist':'True'}
-        FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+        #YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist':'True'}
+        #FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
         
-        if not voice.is_playing():
-            next_song = DataProcessor._get_next_song(guild_id)
-            while next_song != "":
-                if voice.is_playing():
-                    time.sleep(1)
-                else:
-                    with YoutubeDL(YDL_OPTIONS) as ydl:
-                        info = ydl.extract_info(next_song, download=False)
-                    URL = info['formats'][0]['url']
-                    
-                    voice.play(FFmpegPCMAudio(URL, **FFMPEG_OPTIONS))
-                    voice.is_playing()
-                    DataProcessor._delete_song(guild_id,next_song)
-                    next_song = DataProcessor._get_next_song(guild_id)
-        else:
-            await message.channel.send("Already playing song")
+        #if not voice.is_playing():
+        #    next_song = DataProcessor._get_next_song(guild_id)
+        #    while next_song != "":
+        #        if voice.is_playing():
+        #            time.sleep(1)
+        #        else:
+        #            with YoutubeDL(YDL_OPTIONS) as ydl:
+        #                info = ydl.extract_info(next_song, download=False)
+        #            URL = info['formats'][0]['url']
+        #            
+        #            voice.play(FFmpegPCMAudio(URL, **FFMPEG_OPTIONS))
+        #            voice.is_playing()
+        #            DataProcessor._delete_song(guild_id,next_song)
+        #            next_song = DataProcessor._get_next_song(guild_id)
+        #else:
+        #    await message.channel.send("Already playing song")
         
         
         
