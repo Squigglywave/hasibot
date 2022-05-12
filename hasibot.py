@@ -344,7 +344,7 @@ async def on_message(message):
         #import pdb; pdb.set_trace();
         
         print("END")
-    elif cmd[0] == "~.search":
+    elif cmd[0] == "~.find":
         if len(cmd) < 2:
             str_usage = "Please provide search arguement"
             await message.channel.send(content=str_usage)
