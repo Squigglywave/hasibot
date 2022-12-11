@@ -2,10 +2,14 @@
 import io
 import datetime
 import random
+import urllib.request
+import re
+import time
 
 # Third Party Library
 import requests
 import discord
+from discord.utils import get
 import pandas as pd
 import aiocron
 
@@ -24,6 +28,7 @@ client = discord.Client(intents=intents)
 # List of acceptable day emoji names; Discord server needs to name the emojis in
 # this exact format
 day_emotes = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'yes']
+latest_yt_url = ""
 
 ###################
 # Discord Methods #
@@ -83,6 +88,7 @@ async def on_message(message):
     - message   Message   a Discord object
     '''
     global day_emotes
+    global latest_yt_url
     guild_id = str(message.guild.id)
     user_message_id = str(message.author.id)
 
@@ -95,6 +101,7 @@ async def on_message(message):
         return
 
     # Set command message lowercase and split by whitespace
+    original_cmd = message.content.split()
     cmd = message.content.lower().split()
 
     # Check input
@@ -290,9 +297,19 @@ async def on_message(message):
         await DataProcessor._send_bday(client)
     elif cmd[0] == '~.time':
         await message.channel.send(str(datetime.datetime.now()))
+    elif cmd[0] == '~.set_meko_channel':
+        if len(cmd) > 1:
+            channel_id = str(cmd[1])
+            str_final = DataProcessor._set_db_channel('meko_channels',client, guild_id, channel_id)
+        else:
+            str_final = "Please provide channel ID for bot to send messages"
+            
+        await message.channel.send(str_final)
+    elif cmd[0] == "~.farmmeko":
+        await DataProcessor._farm_mekos(client, guild_id, user_message_id)
     elif cmd[0] == "~.eval":
         if len(cmd) < 2:
-            str_usage = "Please provide an expression like 1+1, spaces are NOT allowed."
+            str_usage = "Please provide an expression like 1+1"
             await message.channel.send(content=str_usage)
         else:
             try:
@@ -300,11 +317,145 @@ async def on_message(message):
             except Exception as ex:
                 result = "Expression could not be evaluated, please enter proper expression"
             await message.channel.send(content=result)
+    elif cmd[0] == "~.join":
+        if len(cmd) < 2:
+            str_usage = "Please provide a voice channel id"
+            await message.channel.send(content=str_usage)
+        
+        channel_id = cmd[1]
+        voice_channel = client.get_channel(int(channel_id))
+        
+        await voice_channel.connect()
+        #import time
+        #time.sleep(3)
+        #guild = message.guild.voice_client
+        #await guild.disconnect()
+        
+        print("END")
+    elif cmd[0] == "~.leave":
+        #if len(cmd) < 2:
+        #    str_usage = "Please provide guild id on which guild to leave the voice chat"
+        #    await message.channel.send(content=str_usage)
+        
+        #guild_id = cmd[1]
+        guild = client.get_guild(int(guild_id)).voice_client
+        await guild.disconnect()
+        
+        #import pdb; pdb.set_trace();
+        
+        print("END")
+    elif cmd[0] == "~.find":
+        if len(cmd) < 2:
+            str_usage = "Please provide search arguement"
+            await message.channel.send(content=str_usage)
+        else:
+
+            search_keyword = "+".join(cmd[1:-1])
+            html = urllib.request.urlopen("https://www.youtube.com/results?search_query=" + search_keyword)
+            video_ids = re.findall(r"watch\?v=(\S{11})", html.read().decode())
+            if len(video_ids) == 0:
+                await message.channel.send(content="No result found.")
+            else:
+                latest_yt_url = "https://www.youtube.com/watch?v=" + video_ids[0]
+                await message.channel.send(content=latest_yt_url)
+    elif cmd[0] == "~.play":
+        input_url = ""
+        if len(cmd) > 1:
+            input_url = original_cmd[1]
+            
+            if '.com' not in input_url:
+                search_keyword = "+".join(cmd[1:-1])
+                html = urllib.request.urlopen("https://www.youtube.com/results?search_query=" + search_keyword)
+                video_ids = re.findall(r"watch\?v=(\S{11})", html.read().decode())
+                if len(video_ids) == 0:
+                    await message.channel.send(content="No result found.")
+                else:
+                    input_url = "https://www.youtube.com/watch?v=" + video_ids[0]
+            
+            
+        result = DataProcessor._play_song(client,guild_id,input_url)
+        await message.channel.send(content=result)
+            
+            
+        #if latest_yt_url == "" and input_url == "":
+        #    result = DataProcessor._play_song(client,guild_id,input_url)
+        #    await message.channel.send(content=result)
+        #else:
+        #    if input_url == "":
+        #        result = DataProcessor._play_song(client,guild_id,latest_yt_url)
+        #        await message.channel.send(content=result)
+        #    else:
+        #        result = DataProcessor._play_song(client,guild_id,input_url)
+        #        await message.channel.send(content=result)
+    elif cmd[0] == "~.stop":
+        guild = client.get_guild(int(guild_id))
+        voice = get(client.voice_clients, guild=guild)
+        
+        voice.stop()
+        
+        await message.channel.send("Song Stopped.")
+    elif cmd[0] == "~.add":
+        if len(cmd) < 2:
+            str_usage = "Please provide a youtube url to add"
+        else:
+            song_url = original_cmd[1]
+            result = DataProcessor._add_song(client, guild_id, song_url)
+            
+            await message.channel.send(content=result)
+    elif cmd[0] == "~.list":
+        result = DataProcessor._list_songs(client,guild_id)
+        
+        await message.channel.send(content=result)
+
+    elif cmd[0] == "~.clear":
+        result = DataProcessor._clear_songs(client,guild_id)
+        
+        await message.channel.send(content=result)
+    elif cmd[0] == "~.skip":
+        guild = client.get_guild(int(guild_id))
+        voice = get(client.voice_clients, guild=guild)
+        
+        voice.stop()
+        await message.channel.send("Song skipped.")
+
+        #input_url = DataProcessor._get_next_song(guild_id)
+        #result = DataProcessor._play_song(client,guild_id,input_url)
+        #await message.channel.send(content=result)
+        #guild = client.get_guild(int(guild_id))
+        #voice = get(client.voice_clients, guild=guild)
+        
+        #YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist':'True'}
+        #FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+        
+        #if not voice.is_playing():
+        #    next_song = DataProcessor._get_next_song(guild_id)
+        #    while next_song != "":
+        #        if voice.is_playing():
+        #            time.sleep(1)
+        #        else:
+        #            with YoutubeDL(YDL_OPTIONS) as ydl:
+        #                info = ydl.extract_info(next_song, download=False)
+        #            URL = info['formats'][0]['url']
+        #            
+        #            voice.play(FFmpegPCMAudio(URL, **FFMPEG_OPTIONS))
+        #            voice.is_playing()
+        #            DataProcessor._delete_song(guild_id,next_song)
+        #            next_song = DataProcessor._get_next_song(guild_id)
+        #else:
+        #    await message.channel.send("Already playing song")
+        
+        
+        
+
 
 # Scheduled task for birthdays!
 @aiocron.crontab('0 0 * * *')
 async def cronjob1():
     await DataProcessor._send_bday(client)
+
+@aiocron.crontab('0 0 * * *')
+async def cronjob1():
+    await DataProcessor._farm_mekos(client)
 
 # Run the bot
 client.run(TOKEN)

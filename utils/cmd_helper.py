@@ -1,12 +1,17 @@
 # Standard Library
 import datetime
 import traceback
+import requests
 
 # Third Party Library
 import pandas as pd
 import requests
 import discord
+from discord.utils import get
 import xml.etree.ElementTree as ET
+from discord import Webhook, RequestsWebhookAdapter
+from discord import FFmpegPCMAudio
+from youtube_dl import YoutubeDL
 
 # Application Specific Library
 from config import SCHEMA_NAME, lst_scols, DB_URL, time_zone, PATH
@@ -447,6 +452,48 @@ class DataProcessor():
             
 
     @classmethod
+    def _set_db_channel(cls, table_name, client, guild_id, channel_id):
+        dict_data = {"guild_id": str(guild_id), "channel_id": str(channel_id)}
+        
+        df_channel = pd.DataFrame([dict_data])
+        
+        df_check = DataConnector.read_data("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = '{}' AND table_name = '{}');".format(SCHEMA_NAME,table_name))
+        if df_check['exists'].values[0]:
+            df_existing = DataConnector.read_data("SELECT * FROM {}.{} WHERE guild_id='{}'".format(SCHEMA_NAME,guild_id, str(channel_id),table_name))
+        
+            if df_existing.shape[0] == 0:
+                DataConnector.write_data(df_channel, SCHEMA_NAME, table_name, 'append')
+                str_final = "Channel {} registered".format(str(channel_id))
+            else:
+                DataConnector.run_query("UPDATE {}.{} SET channel_id='{}' WHERE guild_id='{}'".format(SCHEMA_NAME,table_name,str(channel_id),guild_id, str(channel_id)))
+                str_final = "Channel updated to {}".format(str(channel_id))
+        else:
+            DataConnector.write_data(df_channel, SCHEMA_NAME, table_name, 'append')
+            str_final = "Channel {} registered".format(str(channel_id))
+        return str_final    
+
+
+    @classmethod
+    def _farm_mekos(cls, client, guild_id, user_message_id):
+
+    
+    
+        df_guilds = DataConnector.read_data("SELECT DISTINCT guild_id FROM {}.meko_channels".format(SCHEMA_NAME))
+        for guild in df_guilds['guild_id'].tolist():
+            obj_guild = client.get_guild(int(guild))
+            df_channel_id = DataConnector.read_data("SELECT channel_id FROM {}.meko_channels WHERE guild_id='{}'".format(SCHEMA_NAME, int(guild)))
+            if df_channel_id.shape[0] != 0:
+                channel_id = df_channel_id['channel_id'].values[0]
+                channel = obj_guild.get_channel(int(channel_id))
+                import pdb; pdb.set_trace();
+                webhook = Webhook.from_url("https://discord.com/api/webhooks/954795984444076035/s2UQxaaig0fK4oSLUoNeg3j6npquBfiPSox5G4odnRA8Y0O65QofrOKJPcDT5-svukrT", adapter=RequestsWebhookAdapter())
+                webhook.send(">daily", username= client.get_guild(int(guild_id)).get_member(int(user_message_id)).name)
+                
+                
+                #await channel.send("Completed")
+                #await channel.send(">give ~~ *")
+
+    @classmethod
     def _on_message_roll_echo(cls):
 
         # Roll a g30 echostone at normal rates (adv Sidhe)
@@ -566,3 +613,92 @@ class DataProcessor():
             dict_res['status'] = -1
 
             return dict_res
+        
+    @classmethod
+    def _play_next_song(cls, client, guild_id, next_song):
+        #next_song = cls._get_next_song(guild_id)
+        cls._delete_song(guild_id,next_song)
+        
+        YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist':'True'}
+        FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+        
+        if next_song != "":
+            with YoutubeDL(YDL_OPTIONS) as ydl:
+                info = ydl.extract_info(next_song, download=False)
+            URL = info['formats'][0]['url']
+            guild = client.get_guild(int(guild_id))
+            voice = get(client.voice_clients, guild=guild)
+            voice.play(FFmpegPCMAudio(URL, **FFMPEG_OPTIONS), after=lambda e: cls._play_next_song(client,guild_id,cls._get_next_song(guild_id)))   
+        
+    @classmethod
+    def _play_song(cls,client,guild_id,input_url):
+        if input_url == "":
+            input_url = cls._get_next_song(guild_id)
+            cls._delete_song(guild_id,input_url)
+        if input_url == "":
+            return "No song to play"
+    
+        guild = client.get_guild(int(guild_id))
+        voice = get(client.voice_clients, guild=guild)
+        
+        YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist':'True'}
+        FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5', 'options': '-vn'}
+        
+        if not voice.is_playing():
+            with YoutubeDL(YDL_OPTIONS) as ydl:
+                info = ydl.extract_info(input_url, download=False)
+            URL = info['formats'][0]['url']
+            #player = FFmpegPCMAudio(URL, **FFMPEG_OPTIONS)
+            voice.play(FFmpegPCMAudio(URL, **FFMPEG_OPTIONS), after=lambda e: cls._play_next_song(client,guild_id,cls._get_next_song(guild_id)))
+            voice.is_playing()
+            return "playing: {}".format(input_url)
+        else:
+            return "Already playing"
+        
+        
+    @classmethod
+    def _add_song(cls, client, guild_id, song_url):
+        dict_data = {"guild_id": str(guild_id), "songs": str(song_url)}
+        df_song = pd.DataFrame([dict_data])
+        
+        DataConnector.write_data(df_song, SCHEMA_NAME, 'song_queue', 'append')
+        str_final = "Song {} added".format(str(song_url))
+
+        return str_final   
+
+    @classmethod
+    def _list_songs(cls, client, guild_id):
+        df_songs = DataConnector.read_data("SELECT * FROM {}.song_queue WHERE guild_id='{}'".format(SCHEMA_NAME, int(guild_id)))
+        
+        if df_songs.shape[0] == 0:
+            return []
+        else:
+            return df_songs['songs'].tolist()
+        
+    @classmethod
+    def _clear_songs(cls, client,guild_id):
+        DataConnector.run_query(("""DELETE FROM {0}.song_queue
+                                    WHERE guild_id = '{1}';
+                                 """).format(SCHEMA_NAME, str(guild_id)))
+                                 
+        return "Queue cleared"
+        
+    @classmethod
+    def _get_next_song(cls, guild_id):
+        df_songs = DataConnector.read_data("SELECT * FROM {}.song_queue WHERE guild_id='{}'".format(SCHEMA_NAME, int(guild_id)))
+        
+        if df_songs.shape[0] == 0:
+            lst_songs = []
+        else:
+            lst_songs = df_songs['songs'].tolist()
+        
+        if len(lst_songs) == 0:
+            return ""
+        else:
+            return lst_songs[0]
+
+    @classmethod
+    def _delete_song(cls, guild_id, song_url):
+        DataConnector.run_query(("""DELETE FROM {0}.song_queue
+                                    WHERE guild_id = '{1}' AND songs = '{2}'
+                                 """).format(SCHEMA_NAME, str(guild_id), str(song_url)))
