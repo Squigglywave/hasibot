@@ -41,7 +41,10 @@ class DataProcessor():
         df_all_guilds = pd.DataFrame()
         df = DataConnector.read_data('SELECT * FROM {}.guilds'.format(SCHEMA_NAME))
         df_all_guilds = pd.concat([df_all_guilds,df])
-        lst_db_guilds = df_all_guilds['guild_id'].tolist()
+        if df_all_guilds.shape[0] != 0:
+            lst_db_guilds = df_all_guilds['guild_id'].tolist()
+        else:
+            lst_db_guilds = []
 
         # Compare the guilds the bot is currently in versus what is stored in
         # the database
