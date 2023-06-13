@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 import pandas as pd
 
 class DataConnector():
@@ -50,7 +50,10 @@ class DataConnector():
     @classmethod
     def run_query(cls, query):
         try:
-            cls.engine.execute(query)
+            cls.create_conn()
+            cls.conn.execute(text(query))
+            cls.conn.commit()
+            cls.close_conn()
         except Exception as ex:
             print(ex)
             return None
